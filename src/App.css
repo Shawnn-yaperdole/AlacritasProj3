@@ -1,0 +1,866 @@
+/* =====================================================
+   1. GLOBAL CSS // src/App.css
+===================================================== */
+:root {
+  --primary-client: #00D09E;
+  --primary-provider: #007ccf;
+  --bg-color: #f4f7f6;
+  --text-dark: #333;
+  --white: #ffffff;
+  --border: #ddd;
+  --success: #28a745;
+  --info: #17a2b8;
+}
+
+/* Reset & App Shell */
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--bg-color);
+  color: var(--text-dark);
+}
+
+/* Base Action Button */
+.action-btn {
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: 0.2s;
+  padding: 0.7rem 1.2rem;
+  font-weight: 600;
+}
+
+.btn-primary { background-color: var(--primary-client); color: white; }
+.btn-secondary { background-color: #666; color: white; }
+.btn-accent { background-color: #75F2D1; color: black; }
+
+.action-btn:hover { opacity: 0.85; }
+
+/* Status Labels (used in cards & offers) */
+.status {
+  font-weight: bold;
+  margin-top: 0.5rem;
+  display: block;
+}
+
+.status.pending { color: orange; }
+.status.accepted, .status.finished { color: green; }
+.status.denied, .status.cancelled { color: red; }
+
+/* Card Base */
+.card, .offers-card {
+  background: var(--white);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: 1.5rem;
+  height: 380px;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.card img, .offers-card img {
+  width: 100%;
+  height: 50%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.cards-wrapper {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, 280px);
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 1.5rem;
+  width: 100%;
+  padding-bottom: 2rem;
+}
+
+/* FIXED Leaflet Container - Maps stay LOW z-index */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  z-index: 1 !important;
+  position: relative !important;
+}
+
+/* Chat Messages Base */
+
+/* =====================================================
+   2. HEADER CSS
+===================================================== */
+.header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 80px;
+  background-color: var(--white);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  z-index: 100 !important;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 0 24px;
+}
+
+.logo {
+  font-weight: bold;
+  font-size: 1.2rem;
+  white-space: nowrap;
+  color: var(--text-dark);
+}
+
+.nav-btn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  color: #666;
+  transition: 0.2s;
+}
+
+.nav-btn:hover,
+.nav-btn.active {
+  color: var(--text-dark);
+  font-weight: bold;
+}
+
+.nav-btn.active {
+  border-bottom: 3px solid #333;
+}
+
+.switch-btn {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  color: #333;
+  transition: background 0.2s;
+}
+
+.switch-btn:hover { background: #f0f0f0; border-radius: 6px; }
+
+.menu-btn {
+  font-size: 1.5rem;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  border-radius: 6px;
+}
+
+.menu-btn:hover { background-color: #f0f0f0; }
+
+/* =====================================================
+   3. CLIENT HOME CSS
+===================================================== */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  height: 100%;
+  padding: 1.5rem;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  flex-grow: 1;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background: #eee;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+
+/* Client-specific Buttons */
+.client-post-btn { 
+  background-color: var(--primary-client); 
+  color: white; 
+}
+
+.client-filter-btn { 
+  background-color: #666; 
+  color: white; 
+}
+
+.client-view-btn { 
+  background-color: #75F2D1; 
+  color: black; 
+  margin-top: auto;
+  width: 80%;
+  padding: 0.5rem 0;
+  border-radius: 5px;
+  cursor: pointer;
+  align-self: center;
+}
+
+/* =====================================================
+   4. PROVIDER HOME CSS
+===================================================== */
+.community-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.community-cards-wrapper {
+  display: flex;
+  overflow-x: auto;
+  gap: 1rem;
+  scroll-behavior: smooth;
+  padding-bottom: 1rem;
+}
+
+.community-cards-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.community-cards-wrapper::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.switch-map-btn {
+  background-color: var(--primary-provider);
+  color: white;
+  padding: 0.7rem 1.2rem;
+  border-radius: 5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 1.5rem;
+  transition: 0.2s;
+}
+.switch-map-btn:hover { 
+  opacity: 0.85; 
+}
+
+/* Provider Home Arrow Buttons */
+.arrow-btn {
+  background-color: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.arrow-btn:hover {
+  background-color: #f0f0f0;
+}
+
+.arrow-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.arrow-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--text-dark);
+}
+
+/* =====================================================
+   5. MESSAGES CSS
+===================================================== */
+.messages-fullscreen {
+  display: flex;
+  width: 100vw;
+  height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+.chat-list {
+  flex-shrink: 0;
+  width: 30rem;
+  max-width: 25rem;
+  background: var(--white);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.chat-item {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  align-items: center;
+  flex-shrink: 0;  /* optional */
+}
+
+.chat-item .flex-1 {
+  min-width: 0; /* allows truncation */
+  overflow: hidden;
+}
+
+.chat-item p, .chat-item span {
+  white-space: nowrap;       /* keep text on one line */
+  overflow: hidden;          /* hide overflow */
+  text-overflow: ellipsis;   /* add "..." if too long */
+}
+
+.chat-header { 
+  padding: 1rem; 
+  border-bottom: 1px solid var(--border); 
+  flex-shrink: 0; 
+}
+
+.chat-window { 
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  overflow: hidden; 
+  background-color: #fafafa; 
+}
+
+.chat-window-header {
+  padding: 1rem;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-input-area {
+  padding: 1rem;
+  background: #fff;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input {
+  flex-grow: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* Accepted Offer Card */
+.accepted-offer-card {
+  display: flex;
+  background-color: var(--white);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 1rem;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.accepted-offer-card img {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.accepted-offer-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 4px; }
+.accepted-offer-card p { font-size: 0.875rem; margin: 2px 0; }
+.accepted-offer-card a { font-size: 0.875rem; color: #007bff; text-decoration: none; }
+.accepted-offer-card a:hover { text-decoration: underline; }
+
+/* =====================================================
+   6. OFFERS CSS
+===================================================== */
+.offers-tab-container {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 1rem auto 2rem;
+  max-width: 1200px;
+  padding: 0 24px;
+}
+
+.offers-tab {
+  padding: 0.5rem 1.4rem;
+  border-radius: 25px;
+  border: 1px solid #ddd;
+  background-color: #f0fdf9;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+.offers-tab.active {
+  background-color: var(--primary-client);
+  color: white;
+  border-color: var(--primary-client);
+}
+
+.offers-tab:not(.active):hover { 
+  background-color: #e0f7f2; 
+}
+
+.offers-card {
+  margin-top: 30px;
+}
+
+/* Buttons inside offers */
+.action-btn.accept-btn { background-color: var(--primary-client); color: white; }
+.action-btn.decline-btn { background-color: #75F2D1; color: black; }
+.action-btn.viewinfo-btn { background-color: #75F2D1; color: black; }
+
+/* =====================================================
+   7. PROFILE CSS
+===================================================== */
+.profile-page {
+  max-width: 70%;
+  margin: 0 auto;
+  padding: 100px;
+  min-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+.bio {
+  max-width: 100%; /* so it never overflows container */
+}
+
+.bio p {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.bio-textarea {
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.4rem;
+  overflow: hidden; /* hides the scrollbar */
+}
+
+.bio-text {
+  white-space: pre-wrap; /* preserves line breaks */
+  word-wrap: break-word;
+}
+
+.profile-pic-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  gap: 8px;
+}
+
+.profile-pic-container img.profile-pic {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 4px solid #ccc;
+}
+
+.profile-pic-container .edit-pic-btn {
+  background-color: #75F2D1;
+  color: black;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.community-badge {
+  background-color: #E5E7EB;
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.community-badge.default-community {
+  background-color: #47FBCF;
+  color: black;
+}
+
+/* =====================================================
+   8. MENU CSS
+===================================================== */
+.menu-overlay {
+  position: fixed;
+  top: 0; 
+  left: 0;
+  width: 100%; 
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(2px);
+  z-index: 999 !important;
+  pointer-events: auto;
+}
+
+.side-menu {
+  position: fixed;
+  top: 0; right: 0;
+  width: 320px;
+  height: 100%;
+  background: white;
+  z-index: 1000 !important;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  pointer-events: none; /* Prevent hidden menu from blocking overlay */
+}
+
+.side-menu.open {
+  transform: translateX(0);
+  pointer-events: auto; /* Enable clicks */
+}
+
+.menu-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 20px 0;
+}
+
+.menu-title { font-size: 1.5rem; font-weight: bold; color: #333; }
+.menu-buttons { display: flex; gap: 8px; }
+.notif-btn, .close-btn { background: transparent; border: none; padding: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.notif-icon, .close-icon { width: 22px; height: 22px; color: #333; }
+.notif-btn:hover .notif-icon, .close-btn:hover .close-icon { color: var(--primary-client); }
+.menu-items-wrapper { display: flex; flex-direction: column; height: 100%; justify-content: space-between; }
+.menu-items { display: flex; flex-direction: column; gap: 16px; }
+.menu-item { padding: 10px 12px; border-radius: 8px; text-align: left; font-size: 15px; cursor: pointer; background: #f8f8f8; transition: background 0.25s ease; }
+.menu-item:hover { background: #eeeeee; }
+.logout { color: red; background: #ffe6e6; margin-bottom: 15px; }
+
+/* =====================================================
+   9. REQUEST DETAILS CSS
+===================================================== */
+
+/* Card container for thumbnail */
+.rd-card {
+  background-color: var(--white);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 300px;
+  align-content: flex-start;
+  width: 300px;
+}
+
+/* Thumbnail image */
+.rd-card img {
+  border-radius: 8px;
+  width: 80%;
+  height: 70%;
+}
+
+/* Input fields for client edit */
+.rd-search-input {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.5rem 0.75rem;
+  width: 100%;
+  transition: border-color 0.2s ease;
+}
+
+.rd-search-input:focus {
+  border-color: var(--primary-client);
+  outline: none;
+}
+
+/* Reference image thumbnails */
+.rd-reference-img {
+  border-radius: 8px;
+  object-fit: cover;
+  cursor: pointer;
+  border: 2px solid #ccc;
+  transition: border-color 0.2s ease;
+}
+
+.rd-reference-img.selected {
+  border-color: var(--primary-client);
+}
+
+/* Add image placeholder box */
+.rd-add-image-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #e5e7eb; /* light gray */
+  color: #666;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  width: 200px;
+  height: 60px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.rd-add-image-box:hover {
+  background-color: #d1d5db;
+  color: #333;
+}
+
+/* FIXED Map Container */
+.rd-map-container {
+  width: 100%;
+  height: 16rem;
+  border-radius: 8px;
+  z-index: 1 !important;
+  position: relative !important;
+}
+
+/* =====================================================
+   10. OFFER DETAILS CSS
+===================================================== */
+
+/* OfferDetails card */
+.od-card {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem; /* rounded corners */
+  padding: 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Highlighted skill (verified) */
+.od-skill-verified {
+  background-color: #D1FAE5; /* Tailwind green-100 */
+  color: #065F46; /* Tailwind green-800 */
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Unverified skill */
+.od-skill-unverified {
+  background-color: #F3F4F6; /* Tailwind gray-100 */
+  color: #374151; /* Tailwind gray-700 */
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  display: inline-block;
+  margin-bottom: 0.25rem;
+}
+
+/* OfferDetails buttons */
+.od-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.od-btn-accept {
+  background-color: #10B981; /* Tailwind green-500 */
+  color: white;
+}
+.od-btn-accept:hover {
+  background-color: #059669; /* Tailwind green-600 */
+}
+
+.od-btn-counter {
+  background-color: #3B82F6; /* Tailwind blue-500 */
+  color: white;
+}
+.od-btn-counter:hover {
+  background-color: #2563EB; /* Tailwind blue-600 */
+}
+
+.od-btn-decline {
+  background-color: #EF4444; /* Tailwind red-500 */
+  color: white;
+}
+.od-btn-decline:hover {
+  background-color: #DC2626; /* Tailwind red-600 */
+}
+
+/* Profile picture */
+.od-profile-pic {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Request card in OfferDetails */
+.od-request-card {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Input and textarea (for Provider editable fields) */
+.od-input, .od-textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 0.375rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* Divider */
+.od-divider {
+  border-top: 1px solid #E5E7EB; /* Tailwind gray-200 */
+  margin: 1rem 0;
+}
+
+/* =====================================================
+   11. MAP-MODAL Z-INDEX FIX (Leaflet + Modals) - FIXED
+===================================================== */
+
+/* ✅ KEEP LEAFLET MAPS LOW Z-INDEX (400 max) */
+.leaflet-pane { z-index: 400 !important; }
+.leaflet-top, .leaflet-right, .leaflet-bottom, .leaflet-left { z-index: 500 !important; }
+.leaflet-popup-pane { z-index: 600 !important; }
+.leaflet-overlay-pane { z-index: 650 !important; }
+.leaflet-shadow-pane { z-index: 700 !important; }
+.leaflet-marker-pane { z-index: 200 !important; }
+.leaflet-tooltip-pane { z-index: 300 !important; }
+
+/* ✅ MAP CONTAINERS - Always behind modals */
+.rd-map-container, 
+.leaflet-container, 
+.leaflet-map-container {
+  z-index: 1 !important;
+  position: relative !important;
+}
+
+/* ✅ FIXED MODAL SELECTORS - SAFE SYNTAX */
+.fixed.inset-0,
+div[class*="fixed"][class*="inset-0"],
+[class*="z-200"],
+[class*="bg-black"],
+.fixed[class*="bg-black"],
+div[class*="bg-black-50"],
+div[class*="bg-black-80"] {
+  z-index: 2000 !important;
+}
+
+/* Specific modal selectors from your components */
+div[class*="fixed inset-0"][class*="bg-black"],
+div[class*="fixed"][class*="inset-0"][class*="bg-black"] {
+  z-index: 1999 !important;
+}
+
+/* Modal content (dialog boxes) */
+div[class*="bg-white p-4 rounded"],
+div[class*="bg-white rounded-lg p-6"] {
+  z-index: 2001 !important;
+}
+
+/* Profile modal specifically */
+.profile-page .fixed.inset-0 {
+  z-index: 2000 !important;
+}
+
+/* Image zoom modal */
+div[class*="max-h-90vh"] {
+  z-index: 2002 !important;
+}
+
+
+/* =====================================================
+   12. MEDIA QUERIES
+===================================================== */
+@media (max-width: 768px) {
+  .header { flex-wrap: wrap; height: auto; padding: 10px 12px; justify-content: center; }
+  .nav-middle { order: 3; width: 100%; overflow-x: auto; justify-content: flex-start; padding-bottom: 5px; }
+  .nav-right { order: 2; margin-left: auto; }
+  .messages-fullscreen { flex-direction: column; height: calc(100vh - 140px); }
+  .profile-page { max-width: 100%; padding: 120px 1rem 1rem 1rem; }
+  .accepted-offer-card { flex-direction: column; align-items: flex-start; }
+  .accepted-offer-card img { width: 100%; height: auto; }
+}
+
+@media (min-width: 769px) {
+  .chat-window-header button { display: none; }
+}
+
+/* Mobile bottom nav */
+@media (max-width: 768px) {
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    top: auto !important;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #ddd;
+    padding-bottom: env(safe-area-inset-bottom);
+    justify-content: space-around;
+  }
+
+  .mobile-font {
+    font-size: 0.7rem !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .nav-btn span.label-text {
+    display: none !important;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .logo {
+    display: none !important;
+  }
+}

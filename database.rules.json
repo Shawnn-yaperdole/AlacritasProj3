@@ -1,0 +1,50 @@
+{
+  "rules": {
+
+    "requests": {
+      "$requestId": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['title', 'status']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 200"
+      }
+    },
+
+
+    "offers": {
+      "$offerId": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['description', 'amount', 'status']) && newData.child('description').isString() && newData.child('amount').isString() && newData.child('status').isString()"
+      }
+    },
+
+
+    "profiles": {
+      "$profileId": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['fullName']) && newData.child('fullName').isString()"
+      }
+    },
+
+
+    "chats": {
+      "$chatId": {
+        ".read": true,
+        ".write": true,
+        
+        "messages": {
+          "$msgId": {
+            ".validate": "newData.hasChildren(['text', 'timestamp', 'sender']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 1000 && !newData.child('text').val().matches(/.*\\d{7,}.*/) && newData.child('timestamp').isNumber() && newData.child('sender').isString()"
+          }
+        },
+        
+        "meta": {
+          ".read": true,
+          ".write": true,
+          ".validate": "newData.child('lastMsg').isString() && newData.child('lastMsgTime').isNumber()"
+        }
+      }
+    }
+  }
+}
