@@ -94,17 +94,19 @@ const OfferDetails = ({
     setIsSaving(true);
     setSaveMessage("");
 
+    const id = offerData.id || Date.now().toString();
+
     try {
       const payload = {
         ...offerData,
+        id,
         description,
         amount: price,
         status: "pending",
         timestamp: Date.now(),
       };
 
-      const offerId = payload.id || Date.now().toString();
-      await saveOfferRealtime(offerId, payload);
+      await saveOfferRealtime(id, payload);
       
       setSaveMessage("Offer sent successfully!");
       onOfferUpdate(payload);

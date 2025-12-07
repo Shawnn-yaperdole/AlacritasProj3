@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import Header from './Global/Header';
 import Menu from './Global/Menu';
+import Login from './Global/Login';
 import MessagesPage from './Global/Messages';
 import ClientHome from './Client/ClientHome';
 import Offers from './Global/Offers';
@@ -15,6 +16,7 @@ import { saveRequestRealtime, saveOfferRealtime, realtimeDb } from './lib/fireba
 import { ref, onValue } from 'firebase/database';
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userMode, setUserMode] = useState('client');
   const [currentView, setCurrentView] = useState('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -31,7 +33,13 @@ function App() {
   const [requests, setRequests] = useState(MOCK_CLIENT_REQUESTS);
   const [offers, setOffers] = useState([]);
 
-  // ✅ FIXED: Add clientId to ALL Firebase requests (defaults to 1)
+  // Check if user is already logged in on mount
+  useEffect(() => {
+    const loggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+    setIsLoggedIn(loggedIn);
+  }, []);
+
+  // Firebase listeners
   useEffect(() => {
     if (!realtimeDb) {
       console.log('No Firebase, using mock data');
@@ -45,7 +53,7 @@ function App() {
       const list = Object.keys(val).map(k => ({
         id: Number(k),
         ...val[k],
-        clientId: val[k]?.clientId || 1  // ✅ PERMANENT FIX: Always ensure clientId exists
+        clientId: val[k]?.clientId || 1
       }));
       setRequests(list.length > 0 ? list : MOCK_CLIENT_REQUESTS);
     });
@@ -62,6 +70,21 @@ function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  const handleLoginSuccess = () => {
+    setIsLoggedIn(true);
+    setUserMode('client');
+    setCurrentView('home');
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('isLoggedIn');
+    sessionStorage.removeItem('username');
+    setIsLoggedIn(false);
+    setUserMode('client');
+    setCurrentView('home');
+    setIsMenuOpen(false);
+  };
 
   const toggleMode = () => {
     setUserMode(prev => (prev === 'client' ? 'provider' : 'client'));
@@ -88,6 +111,11 @@ function App() {
     });
   };
 
+  // If not logged in, show login page
+  if (!isLoggedIn) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
   const renderContent = () => {
     switch (currentView) {
       case 'home':
@@ -112,7 +140,7 @@ function App() {
                 description: '',
                 thumbnail: '',
                 images: [],
-                clientId: 1,  // ✅ New requests also get clientId
+                clientId: 1,
               };
               setSelectedRequestId(newId);
               setTempRequestData(newRequest);
@@ -225,12 +253,10 @@ function App() {
         );
       }
 
-      // ✅ FIXED: Bulletproof client profile lookup
       case 'view-client-profile': {
         console.log("🔍 Viewing client profile ID:", viewingClientProfileId);
         console.log("🔍 MOCK_CLIENT.id:", MOCK_CLIENT?.id);
         
-        // ✅ Always match clientId 1 (works with Firebase + Mock data)
         const clientProfile = (viewingClientProfileId == 1 || !viewingClientProfileId) 
           ? MOCK_CLIENT 
           : null;
@@ -357,7 +383,7 @@ function App() {
       <Menu
         isOpen={isMenuOpen}
         close={() => setIsMenuOpen(false)}
-        logout={() => alert('Logged out')}
+        logout={handleLogout}
       />
     </div>
   );
