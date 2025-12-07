@@ -1,6 +1,5 @@
 // src/Client/ClientHome.jsx
 import React, { useState, useRef, useEffect } from "react";
-import { MOCK_CLIENT } from "../Sample/MockData";
 
 // Reusable SearchBar component
 const SearchBar = ({ value, onChange }) => (
@@ -41,7 +40,7 @@ const RequestCard = ({ request, onViewDetails }) => (
   </div>
 );
 
-const ClientHome = ({ requests = [], onViewDetails, onCreateRequest, navigateToProfile }) => {
+const ClientHome = ({ requests = [], onViewDetails, onCreateRequest, navigateToProfile, userProfile }) => {
   const [filterText, setFilterText] = useState("");
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState(null);
@@ -55,6 +54,9 @@ const ClientHome = ({ requests = [], onViewDetails, onCreateRequest, navigateToP
     "Construction", "Electrical", "Plumbing", "Mechanical", "Transport",
     "Logistics", "Manufacturing", "Welding", "Painting", "Landscaping", "Other"
   ];
+
+  // Get communities from user profile or default
+  const clientCommunities = userProfile?.communities || ["Baguio City"];
 
   // Close dropdown if user clicks outside
   useEffect(() => {
@@ -105,7 +107,7 @@ const ClientHome = ({ requests = [], onViewDetails, onCreateRequest, navigateToP
         : match && req.type === typeFilter;
     }
 
-    if (communityFilter) match = match && req.type === communityFilter;
+    if (communityFilter) match = match && req.location === communityFilter;
 
     return match;
   });
@@ -176,7 +178,7 @@ const ClientHome = ({ requests = [], onViewDetails, onCreateRequest, navigateToP
 
       {activeFilter === "community" && (
         <div className="flex flex-col gap-2">
-          {MOCK_CLIENT.communities.map(comm => (
+          {clientCommunities.map(comm => (
             <button
               key={comm}
               className={`action-btn px-3 py-1 ${communityFilter === comm ? "bg-blue-500 text-white" : ""}`}
@@ -220,7 +222,10 @@ const ClientHome = ({ requests = [], onViewDetails, onCreateRequest, navigateToP
             <RequestCard key={req.id} request={req} onViewDetails={onViewDetails} />
           ))
         ) : (
-          <p className="text-gray-400 col-span-full">No requests found.</p>
+          <div className="col-span-full text-center py-12">
+            <p className="text-gray-500 text-lg">No requests yet.</p>
+            <p className="text-gray-400 text-sm mt-2">Click "+ Post Request" to create your first request!</p>
+          </div>
         )}
       </div>
     </div>

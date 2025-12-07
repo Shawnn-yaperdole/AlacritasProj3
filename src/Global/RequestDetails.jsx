@@ -1,9 +1,8 @@
-// src/Global/RequestDetails.jsx - FULL CODE WITH WORKING MAPS
+// src/Global/RequestDetails.jsx - FULL CODE WITH WORKING MAPS (NO MOCK DATA)
 import React, { useState, useEffect } from "react";
 import { uploadFileToCloudinary } from "../lib/cloudinary";
-import { saveRequest, saveRequestRealtime } from "../lib/firebase";
-import { deleteRequest, deleteRequestRealtime } from "../lib/firebase";
-import { MOCK_CLIENT_REQUESTS } from "../Sample/MockData";
+import { saveRequestRealtime } from "../lib/firebase";
+import { deleteRequestRealtime } from "../lib/firebase";
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -16,13 +15,23 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewRequest, onGoToOffer, onViewClientProfile}) => {
+const RequestDetails = ({ 
+  requestData, 
+  userRole, 
+  onBackToClientHome, 
+  isNewRequest, 
+  onGoToOffer, 
+  onViewClientProfile,
+  currentUser 
+}) => {
   const [title, setTitle] = useState(requestData?.title || "");
   const [type, setType] = useState(requestData?.type || "");
   const [location, setLocation] = useState(requestData?.location || "");
   const [description, setDescription] = useState(requestData?.description || "");
   const [thumbnail, setThumbnail] = useState(requestData?.thumbnail || "");
-  const [selectedLatLon, setSelectedLatLon] = useState({ lat: 16.4023, lon: 120.5960 }); // ✅ MAP STATE
+  const [selectedLatLon, setSelectedLatLon] = useState(
+    requestData?.latLon || { lat: 16.4023, lon: 120.5960 }
+  );
   const initialAdditional = (requestData?.images || []).map((src) => ({ src }));
   const [additionalImages, setAdditionalImages] = useState(initialAdditional);
 
@@ -34,6 +43,10 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
   const [viewAllOpen, setViewAllOpen] = useState(false);
   const [providerViewOpen, setProviderViewOpen] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
+
+  // Check if current user owns this request
+  const isOwner = requestData?.clientId === currentUser;
+  const canEdit = userRole === "client" && isOwner;
 
   // Upload new images
   const handleUpload = (e) => {
@@ -61,13 +74,7 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
     if (!confirmDelete) return;
 
     try {
-      const index = MOCK_CLIENT_REQUESTS.findIndex((r) => r.id === requestData.id);
-      if (index !== -1){
-        MOCK_CLIENT_REQUESTS.splice(index, 1);
-      }
-
       await deleteRequestRealtime(requestData.id);
-
       if (onBackToClientHome) onBackToClientHome(null);
     } catch (err) {
       console.error("Failed to delete request", err);
@@ -120,13 +127,14 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
         description,
         thumbnail: thumbnailUrl,
         images: imagesUrls,
-        latLon: selectedLatLon, // ✅ Save map coordinates
+        latLon: selectedLatLon,
+        clientId: requestData.clientId || currentUser,
+        date: requestData.date || new Date().toISOString().split('T')[0]
       };
 
       // Step 3: Assign ID for new requests
-      if (isNewRequest) {
-        const maxId = MOCK_CLIENT_REQUESTS.reduce((m, r) => Math.max(m, r.id), 0);
-        payload.id = maxId + 1;
+      if (isNewRequest && !payload.id) {
+        payload.id = Date.now(); // Use timestamp as unique ID
       }
 
       // Step 4: Save to Firebase Realtime Database
@@ -143,7 +151,7 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
       // Step 6: Show success message
       setSaveMessage("Saved successfully!");
 
-      // Step 7: Navigate back after a short delay (so user sees success message)
+      // Step 7: Navigate back after a short delay
       setTimeout(() => {
         if (onBackToClientHome) onBackToClientHome(payload);
       }, 1000);
@@ -181,7 +189,7 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
               </div>
             )}
 
-            {userRole === "client" && (
+            {canEdit && (
               <button
                 onClick={() => setChooseThumbnailOpen(true)}
                 className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -192,7 +200,7 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
             )}
           </div>
 
-          {userRole === "client" && (
+          {canEdit && (
             <button
               onClick={() => setViewAllOpen(true)}
               className="mt-2 px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
@@ -215,7 +223,7 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
         <div className="flex-1 flex flex-col gap-4">
           <div>
             <label className="font-semibold">Title</label>
-            {userRole === "client" ? (
+            {canEdit ? (
               <input
                 type="text"
                 className="w-full rd-search-input"
@@ -229,7 +237,7 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
 
           <div>
             <label className="font-semibold">Type</label>
-            {userRole === "client" ? (
+            {canEdit ? (
               <input
                 type="text"
                 className="w-full rd-search-input"
@@ -243,7 +251,7 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
 
           <div>
             <label className="font-semibold">Location</label>
-            {userRole === "client" ? (
+            {canEdit ? (
               <>
                 <input
                   type="text"
@@ -252,7 +260,6 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="Barangay/City, Street, Specific address"
                 />
-                {/* ✅ FULLY FUNCTIONAL LEAFLET MAP */}
                 <div className="rd-map-container w-full h-64 border rounded relative">
                   <MapContainer 
                     center={[selectedLatLon.lat, selectedLatLon.lon]} 
@@ -280,7 +287,7 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
 
           <div>
             <label className="font-semibold">Description</label>
-            {userRole === "client" ? (
+            {canEdit ? (
               <textarea
                 className="w-full rd-search-input"
                 value={description}
@@ -309,7 +316,7 @@ const RequestDetails = ({ requestData, userRole, onBackToClientHome, isNewReques
         </div>
       </div>
 
-      {userRole === "client" && (
+      {canEdit && (
         <div className="flex justify-center mt-4 gap-4">
           <button
             className={`action-btn client-post-btn px-6 py-2 ${
@@ -421,7 +428,6 @@ const MapClickRequest = ({ setLocation, setSelectedLatLon }) => {
     click: async (e) => {
       const { lat, lng } = e.latlng;
       
-      // Reverse geocode to get barangay
       try {
         const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2&addressdetails=1`;
         const res = await fetch(url);

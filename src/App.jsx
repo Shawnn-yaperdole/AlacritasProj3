@@ -11,12 +11,12 @@ import ProfileViewOnly from './Global/ProfileViewOnly';
 import ProviderHome from './Provider/ProviderHome';
 import RequestDetails from './Global/RequestDetails';
 import OfferDetails from './Global/OfferDetails';
-import { MOCK_CLIENT_REQUESTS, MOCK_PROVIDER, MOCK_CLIENT } from './Sample/MockData';
 import { saveRequestRealtime, saveOfferRealtime, realtimeDb } from './lib/firebase';
 import { ref, onValue } from 'firebase/database';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null); // 'ClientAdmin' or 'ProviderAdmin'
   const [userMode, setUserMode] = useState('client');
   const [currentView, setCurrentView] = useState('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -30,20 +30,63 @@ function App() {
   const [viewingClientProfileId, setViewingClientProfileId] = useState(null);
   const [previousView, setPreviousView] = useState('home');
 
-  const [requests, setRequests] = useState(MOCK_CLIENT_REQUESTS);
+  const [requests, setRequests] = useState([]);
   const [offers, setOffers] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
 
   // Check if user is already logged in on mount
   useEffect(() => {
     const loggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+    const username = sessionStorage.getItem('username');
     setIsLoggedIn(loggedIn);
+    setCurrentUser(username);
+    
+    // Set initial user mode based on logged-in user
+    if (username === 'ClientAdmin') {
+      setUserMode('client');
+    } else if (username === 'ProviderAdmin') {
+      setUserMode('provider');
+    }
   }, []);
 
-  // Firebase listeners
+  // Load user profile from Firebase
+  useEffect(() => {
+    if (!realtimeDb || !currentUser) return;
+    
+    const profileRef = ref(realtimeDb, `profiles/${currentUser}`);
+    const unsubscribe = onValue(profileRef, snapshot => {
+      const data = snapshot.val();
+      if (data) {
+        setUserProfile(data);
+      } else {
+        // Initialize default profile if doesn't exist
+        const defaultProfile = {
+          fullName: currentUser === 'ClientAdmin' ? 'Jane Client' : 'John Provider',
+          email: currentUser === 'ClientAdmin' ? 'jane@client.com' : 'john@provider.com',
+          phone: currentUser === 'ClientAdmin' ? '+63 912 345 6789' : '+63 998 765 4321',
+          location: 'Baguio City',
+          communities: ['Baguio City'],
+          defaultCommunity: 'Baguio City',
+          bio: `Hello! I'm ${currentUser === 'ClientAdmin' ? 'Jane' : 'John'}.`,
+          profilePic: currentUser === 'ClientAdmin' 
+            ? 'https://ui-avatars.com/api/?name=Jane+Client&size=200' 
+            : 'https://ui-avatars.com/api/?name=John+Provider&size=200',
+          skills: currentUser === 'ProviderAdmin' ? [
+            { name: 'Construction', verified: true },
+            { name: 'Electrical', verified: false }
+          ] : []
+        };
+        setUserProfile(defaultProfile);
+      }
+    });
+    
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Firebase listeners for requests
   useEffect(() => {
     if (!realtimeDb) {
-      console.log('No Firebase, using mock data');
-      setRequests(MOCK_CLIENT_REQUESTS);
+      console.log('No Firebase, data will not persist');
       return;
     }
 
@@ -53,13 +96,14 @@ function App() {
       const list = Object.keys(val).map(k => ({
         id: Number(k),
         ...val[k],
-        clientId: val[k]?.clientId || 1
+        clientId: val[k]?.clientId || currentUser
       }));
-      setRequests(list.length > 0 ? list : MOCK_CLIENT_REQUESTS);
+      setRequests(list);
     });
     return () => unsubscribe();
-  }, []);
+  }, [currentUser]);
 
+  // Firebase listeners for offers
   useEffect(() => {
     if (!realtimeDb) return;
     const offersRef = ref(realtimeDb, 'offers');
@@ -71,9 +115,17 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  const handleLoginSuccess = () => {
+  const handleLoginSuccess = (username) => {
     setIsLoggedIn(true);
-    setUserMode('client');
+    setCurrentUser(username);
+    
+    // Set mode based on which user logged in
+    if (username === 'ClientAdmin') {
+      setUserMode('client');
+    } else if (username === 'ProviderAdmin') {
+      setUserMode('provider');
+    }
+    
     setCurrentView('home');
   };
 
@@ -81,6 +133,7 @@ function App() {
     sessionStorage.removeItem('isLoggedIn');
     sessionStorage.removeItem('username');
     setIsLoggedIn(false);
+    setCurrentUser(null);
     setUserMode('client');
     setCurrentView('home');
     setIsMenuOpen(false);
@@ -111,17 +164,31 @@ function App() {
     });
   };
 
+  // Filter requests based on current user and mode
+  const getFilteredRequests = () => {
+    if (userMode === 'client') {
+      // Show only current user's requests
+      return requests.filter(r => r.clientId === currentUser);
+    } else {
+      // Show requests from OTHER users only
+      return requests.filter(r => r.clientId !== currentUser);
+    }
+  };
+
   // If not logged in, show login page
   if (!isLoggedIn) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
   const renderContent = () => {
+    const filteredRequests = getFilteredRequests();
+    
     switch (currentView) {
       case 'home':
         return userMode === 'client' ? (
           <ClientHome
-            requests={requests}
+            requests={filteredRequests}
+            userProfile={userProfile}
             onViewDetails={(id) => {
               setIsNewRequest(false);
               setSelectedRequestId(id);
@@ -140,7 +207,7 @@ function App() {
                 description: '',
                 thumbnail: '',
                 images: [],
-                clientId: 1,
+                clientId: currentUser,
               };
               setSelectedRequestId(newId);
               setTempRequestData(newRequest);
@@ -150,7 +217,8 @@ function App() {
           />
         ) : (
           <ProviderHome
-            requests={requests}
+            requests={filteredRequests}
+            userProfile={userProfile}
             onViewDetails={(id) => {
               setIsNewRequest(false);
               setSelectedRequestId(id);
@@ -196,7 +264,14 @@ function App() {
         );
 
       case 'profile':
-        return <Profile role={userMode} setCurrentView={setCurrentView} />;
+        return (
+          <Profile 
+            role={userMode} 
+            setCurrentView={setCurrentView}
+            currentUser={currentUser}
+            userProfile={userProfile}
+          />
+        );
 
       case 'request-details': {
         const existingRequest = requests.find(r => r.id === selectedRequestId);
@@ -225,6 +300,7 @@ function App() {
             tempRequestData={tempRequestData}
             setTempRequestData={setTempRequestData}
             userRole={userMode}
+            currentUser={currentUser}
             onBackToClientHome={(updatedRequest) => {
               if (userMode === 'client' && updatedRequest) {
                 handleRequestUpdate(updatedRequest);
@@ -254,18 +330,14 @@ function App() {
       }
 
       case 'view-client-profile': {
-        console.log("🔍 Viewing client profile ID:", viewingClientProfileId);
-        console.log("🔍 MOCK_CLIENT.id:", MOCK_CLIENT?.id);
+        // Load profile for the client being viewed
+        const clientProfile = userProfile; // Simplified - in production, load specific user profile
         
-        const clientProfile = (viewingClientProfileId == 1 || !viewingClientProfileId) 
-          ? MOCK_CLIENT 
-          : null;
-
         if (!clientProfile) {
           return (
             <div className="p-4 text-center">
               <div className="text-lg font-semibold text-red-600 mb-4">
-                Client profile not found (ID: {viewingClientProfileId ?? 'MISSING'})
+                Client profile not found
               </div>
               <button className="action-btn client-post-btn px-6 py-2" onClick={() => setCurrentView('home')}>
                 Back to Home
@@ -292,7 +364,8 @@ function App() {
           description: '',
           amount: '',
           status: 'pending',
-          provider: MOCK_PROVIDER,
+          provider: userProfile,
+          providerId: currentUser,
           requestId: selectedRequestId
         } : null);
 
@@ -318,7 +391,7 @@ function App() {
           return (
             <div className="p-4 text-center">
               <div className="text-lg font-semibold text-gray-700 mb-2">
-                Related request not found (ID: {selectedRequestId})
+                Related request not found
               </div>
               <button
                 className="action-btn client-post-btn px-6 py-2"
@@ -344,27 +417,7 @@ function App() {
       }
 
       default:
-        return userMode === 'client' ? (
-          <ClientHome
-            requests={requests}
-            onViewDetails={(id) => {
-              setIsNewRequest(false);
-              setSelectedRequestId(id);
-              setCurrentView('request-details');
-            }}
-            navigateToProfile={() => setCurrentView('profile')}
-          />
-        ) : (
-          <ProviderHome
-            requests={requests}
-            onViewDetails={(id) => {
-              setIsNewRequest(false);
-              setSelectedRequestId(id);
-              setCurrentView('request-details');
-            }}
-            navigateToProfile={() => setCurrentView('profile')}
-          />
-        );
+        return null;
     }
   };
 
@@ -376,6 +429,7 @@ function App() {
         setIsMenuOpen={setIsMenuOpen}
         currentView={currentView}
         setCurrentView={setCurrentView}
+        currentUser={currentUser}
       />
       <main className="main w-full flex-1">
         {renderContent()}

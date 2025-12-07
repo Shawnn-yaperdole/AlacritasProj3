@@ -1,14 +1,16 @@
+// src/Provider/ProviderHome.jsx
 import React, { useState, useRef, useEffect } from "react";
-import { MOCK_CLIENT_REQUESTS, MOCK_PROVIDER } from "../Sample/MockData";
 
 // RequestCard
 const RequestCard = ({ request, onViewDetails, onSendOffer }) => (
   <div className="card hover:shadow-lg transition-shadow duration-200 flex flex-col min-w-[220px]">
-    <img
-      src={request.thumbnail}
-      alt={request.title}
-      className="w-full max-h-36 object-cover rounded-lg mb-3"
-    />
+    {request.thumbnail && (
+      <img
+        src={request.thumbnail}
+        alt={request.title}
+        className="w-full max-h-36 object-cover rounded-lg mb-3"
+      />
+    )}
     <div className="flex-1 flex flex-col space-y-1">
       <h3 className="font-semibold text-lg truncate" title={request.title}>
         {request.title}
@@ -65,7 +67,7 @@ const SearchBar = ({ value, onChange }) => (
   />
 );
 
-const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
+const ProviderHome = ({ requests = [], onViewDetails, onSendOffer, navigateToProfile, userProfile }) => {
   const [filterText, setFilterText] = useState("");
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState(null);
@@ -74,7 +76,6 @@ const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
   const [communityFilter, setCommunityFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
 
-  const providerData = MOCK_PROVIDER;
   const dropdownRef = useRef(null);
 
   const TYPES = [
@@ -82,14 +83,17 @@ const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
     "Logistics","Manufacturing","Welding","Painting","Landscaping","Other"
   ];
 
+  // Get communities from user profile or default to empty array
+  const providerCommunities = userProfile?.communities || ["Baguio City"];
+
   // Horizontal scroll refs
-  const communityRefs = providerData.communities.reduce((acc, community) => {
+  const communityRefs = providerCommunities.reduce((acc, community) => {
     acc[community] = useRef(null);
     return acc;
   }, {});
 
   const [scrollStatus, setScrollStatus] = useState(
-    providerData.communities.reduce((acc, community) => {
+    providerCommunities.reduce((acc, community) => {
       acc[community] = { left: false, right: false };
       return acc;
     }, {})
@@ -154,47 +158,47 @@ const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
     setFilterDropdownOpen(false);
   };
 
-  // Filter requests
-  const filteredRequests = MOCK_CLIENT_REQUESTS.filter(req => {
+  // Filter requests from prop (already filtered by App.jsx to exclude current user's requests)
+  const filteredRequests = requests.filter(req => {
     let match = true;
     
     if (filterText) {
       match = req.title.toLowerCase().includes(filterText.toLowerCase()) ||
-        req.description.toLowerCase().includes(filterText.toLowerCase());
+        (req.description && req.description.toLowerCase().includes(filterText.toLowerCase()));
     }
   
     if (typeFilter) {
-      match = typeFilter==="Other" 
-      ? match && req.type.toLowerCase().includes(customType.toLowerCase()) 
-      : match && req.type===typeFilter;
+      match = typeFilter === "Other" 
+        ? match && req.type.toLowerCase().includes(customType.toLowerCase()) 
+        : match && req.type === typeFilter;
     }
 
     if (communityFilter) {
-      match = match && req.location===communityFilter;
+      match = match && req.location === communityFilter;
     }
 
     return match;
   });
 
   const sortedRequests = dateFilter
-    ? filteredRequests.slice().sort((a,b)=> {
+    ? filteredRequests.slice().sort((a, b) => {
         const aTime = new Date(a.date).getTime();
         const bTime = new Date(b.date).getTime();
-        return dateFilter==="recent" ? bTime-aTime : aTime-bTime;
+        return dateFilter === "recent" ? bTime - aTime : aTime - bTime;
       })
     : filteredRequests;
 
   return (
     <div className="page-container flex flex-col space-y-6">
-      <h2 className="text 2x1 font-bold text-client-header">Requests for You</h2>
+      <h2 className="text-2xl font-bold text-client-header">Requests for You</h2>
 
       <div className="controls flex flex-wrap gap-4 items-center relative">
-        <SearchBar value={filterText} onChange={(e)=>setFilterText(e.target.value)} />
+        <SearchBar value={filterText} onChange={(e) => setFilterText(e.target.value)} />
 
         <div className="relative" ref={dropdownRef}>
           <button
             className="action-btn client-filter-btn flex-shrink-0"
-            onClick={()=>setFilterDropdownOpen(!filterDropdownOpen)}
+            onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
           >
             Filter Requests By:
           </button>
@@ -216,8 +220,8 @@ const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
             <div key={type}>
               {type !== "Other" ? (
                 <button
-                  className={`action-btn px-3 py-1 ${typeFilter===type ? "bg-blue-500 text-white" : ""}`}
-                  onClick={()=>handleTypeClick(type)}
+                  className={`action-btn px-3 py-1 ${typeFilter === type ? "bg-blue-500 text-white" : ""}`}
+                  onClick={() => handleTypeClick(type)}
                 >
                   {type}
                 </button>
@@ -225,8 +229,8 @@ const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
                 <input
                   className="border px-3 py-1 rounded"
                   placeholder="Other type..."
-                  value={typeFilter==="Other"?customType:""}
-                  onChange={e=>{ setTypeFilter("Other"); setCustomType(e.target.value); }}
+                  value={typeFilter === "Other" ? customType : ""}
+                  onChange={e => { setTypeFilter("Other"); setCustomType(e.target.value); }}
                 />
               )}
             </div>
@@ -234,12 +238,12 @@ const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
         </div>
       )}
       
-      {activeFilter==="community" && (
+      {activeFilter === "community" && (
         <div className="flex flex-col gap-2">
-          {providerData.communities.map(comm=>(
+          {providerCommunities.map(comm => (
             <button
               key={comm}
-              className={`action-btn px-3 py-1 ${communityFilter === comm ? "bg-blue-500 text-white" : "" }`}
+              className={`action-btn px-3 py-1 ${communityFilter === comm ? "bg-blue-500 text-white" : ""}`}
               onClick={() => handleCommunityClick(comm)}
             >
               {comm}
@@ -247,7 +251,7 @@ const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
           ))}
           <button
             className="action-btn px-3 py-1 bg-gray-200 text-gray-800"
-            onClick={()=>handleCommunityClick("join_new")}
+            onClick={() => handleCommunityClick("join_new")}
           >
             Join a New Community
           </button>
@@ -255,15 +259,17 @@ const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
       )}
 
       {/* Date Filter */}
-      {activeFilter==="date" && (
+      {activeFilter === "date" && (
         <div className="flex gap-2">
-          <button className={`action-btn px-3 py-1 ${dateFilter === "recent" ? "bg-blue-500 text-white" : ""}`} 
-          onClick={()=>handleDateClick("recent")}
+          <button 
+            className={`action-btn px-3 py-1 ${dateFilter === "recent" ? "bg-blue-500 text-white" : ""}`} 
+            onClick={() => handleDateClick("recent")}
           >
             Recently Added
           </button>
-          <button className={`action-btn px-3 py-1 ${dateFilter === "oldest" ? "bg-blue-500 text-white" : ""}`} 
-          onClick={()=> handleDateClick("oldest")}
+          <button 
+            className={`action-btn px-3 py-1 ${dateFilter === "oldest" ? "bg-blue-500 text-white" : ""}`} 
+            onClick={() => handleDateClick("oldest")}
           >
             Oldest
           </button>
@@ -271,29 +277,53 @@ const ProviderHome = ({ onViewDetails, onSendOffer, navigateToProfile }) => {
       )}
 
       {/* Community Rows */}
-      <div className="flex flex-col gap-10 mt-4">
-        {providerData.communities.map((community)=>{
-          let communityRequests = sortedRequests.filter(r=>r.location===community);
-          if(!communityRequests.length) return null;
-          return (
-            <div key={community}>
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-semibold text-xl">{community}</h3>
-                <div className="flex gap-2">
-                  <ArrowButton direction="left" onClick={()=>scroll(community,"left")} isActive={scrollStatus[community]?.left} />
-                  <ArrowButton direction="right" onClick={()=>scroll(community,"right")} isActive={scrollStatus[community]?.right} />
+      {sortedRequests.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">No requests available yet.</p>
+          <p className="text-gray-400 text-sm mt-2">Check back later for new requests from clients!</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-10 mt-4">
+          {providerCommunities.map((community) => {
+            let communityRequests = sortedRequests.filter(r => r.location === community);
+            if (!communityRequests.length) return null;
+            return (
+              <div key={community}>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-semibold text-xl">{community}</h3>
+                  <div className="flex gap-2">
+                    <ArrowButton 
+                      direction="left" 
+                      onClick={() => scroll(community, "left")} 
+                      isActive={scrollStatus[community]?.left} 
+                    />
+                    <ArrowButton 
+                      direction="right" 
+                      onClick={() => scroll(community, "right")} 
+                      isActive={scrollStatus[community]?.right} 
+                    />
+                  </div>
+                </div>
+
+                <div 
+                  className="flex gap-6 overflow-x-auto scrollbar-hide" 
+                  ref={communityRefs[community]} 
+                  onScroll={() => updateScrollStatus(community)}
+                >
+                  {communityRequests.map(req => (
+                    <RequestCard 
+                      key={req.id} 
+                      request={req} 
+                      onViewDetails={onViewDetails} 
+                      onSendOffer={onSendOffer} 
+                    />
+                  ))}
                 </div>
               </div>
-
-              <div className="flex gap-6 overflow-x-auto scrollbar-hide" ref={communityRefs[community]} onScroll={()=>updateScrollStatus(community)}>
-                {communityRequests.map(req=>(
-                  <RequestCard key={req.id} request={req} onViewDetails={onViewDetails} onSendOffer={onSendOffer} />
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
