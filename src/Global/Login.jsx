@@ -19,10 +19,8 @@ const Login = ({ onLoginSuccess }) => {
       const validPassword = 'alacritasadmin';
 
       if (validUsers.includes(username) && password === validPassword) {
-        // Store login state
-        sessionStorage.setItem('isLoggedIn', 'true');
-        sessionStorage.setItem('username', username);
-        onLoginSuccess();
+        // ✅ FIX: Pass username to onLoginSuccess
+        onLoginSuccess(username);
       } else {
         setError('Invalid username or password');
         setIsLoading(false);

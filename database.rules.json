@@ -1,32 +1,28 @@
 {
   "rules": {
-
     "requests": {
+      ".read": true,
       "$requestId": {
-        ".read": true,
         ".write": true,
         ".validate": "newData.hasChildren(['title', 'status']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 200"
       }
     },
 
-
     "offers": {
+      ".read": true,
       "$offerId": {
-        ".read": true,
         ".write": true,
         ".validate": "newData.hasChildren(['description', 'amount', 'status']) && newData.child('description').isString() && newData.child('amount').isString() && newData.child('status').isString()"
       }
     },
 
-
     "profiles": {
+      ".read": true,
       "$profileId": {
-        ".read": true,
         ".write": true,
         ".validate": "newData.hasChildren(['fullName']) && newData.child('fullName').isString()"
       }
     },
-
 
     "chats": {
       "$chatId": {

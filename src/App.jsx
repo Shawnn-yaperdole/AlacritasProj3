@@ -1,3 +1,4 @@
+// src/App.jsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import Header from './Global/Header';
@@ -11,12 +12,17 @@ import ProfileViewOnly from './Global/ProfileViewOnly';
 import ProviderHome from './Provider/ProviderHome';
 import RequestDetails from './Global/RequestDetails';
 import OfferDetails from './Global/OfferDetails';
-import { saveRequestRealtime, saveOfferRealtime, realtimeDb } from './lib/firebase';
+import { 
+  saveRequestRealtime, 
+  saveOfferRealtime,
+  saveProfileRealtime, 
+  realtimeDb 
+} from './lib/firebase';
 import { ref, onValue } from 'firebase/database';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentUser, setCurrentUser] = useState(null); // 'ClientAdmin' or 'ProviderAdmin'
+  const [currentUser, setCurrentUser] = useState(null);
   const [userMode, setUserMode] = useState('client');
   const [currentView, setCurrentView] = useState('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -34,18 +40,18 @@ function App() {
   const [offers, setOffers] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
 
-  // Check if user is already logged in on mount
+  // ✅ FIX 1: Check login state immediately on mount (synchronously)
   useEffect(() => {
     const loggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
     const username = sessionStorage.getItem('username');
-    setIsLoggedIn(loggedIn);
-    setCurrentUser(username);
     
-    // Set initial user mode based on logged-in user
-    if (username === 'ClientAdmin') {
-      setUserMode('client');
-    } else if (username === 'ProviderAdmin') {
-      setUserMode('provider');
+    console.log('🔐 Restoring session:', { loggedIn, username });
+    
+    if (loggedIn && username) {
+      setIsLoggedIn(true);
+      setCurrentUser(username);
+      if (username === 'ClientAdmin') setUserMode('client');
+      if (username === 'ProviderAdmin') setUserMode('provider');
     }
   }, []);
 
@@ -53,12 +59,16 @@ function App() {
   useEffect(() => {
     if (!realtimeDb || !currentUser) return;
     
+    console.log('👤 Loading profile for:', currentUser);
+    
     const profileRef = ref(realtimeDb, `profiles/${currentUser}`);
     const unsubscribe = onValue(profileRef, snapshot => {
       const data = snapshot.val();
       if (data) {
+        console.log('✅ Profile loaded:', data);
         setUserProfile(data);
       } else {
+        console.log('📝 Creating default profile for:', currentUser);
         // Initialize default profile if doesn't exist
         const defaultProfile = {
           fullName: currentUser === 'ClientAdmin' ? 'Jane Client' : 'John Provider',
@@ -77,59 +87,91 @@ function App() {
           ] : []
         };
         setUserProfile(defaultProfile);
+        saveProfileRealtime(currentUser, defaultProfile);
       }
     });
     
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Firebase listeners for requests
+  // ✅ FIX 2: Firebase listeners for requests - DON'T modify clientId
   useEffect(() => {
     if (!realtimeDb) {
-      console.log('No Firebase, data will not persist');
+      console.warn('⚠️ Firebase not initialized');
       return;
     }
-
-    const requestsRef = ref(realtimeDb, 'requests');
-    const unsubscribe = onValue(requestsRef, snapshot => {
-      const val = snapshot.val() || {};
-      const list = Object.keys(val).map(k => ({
-        id: Number(k),
-        ...val[k],
-        clientId: val[k]?.clientId || currentUser
-      }));
-      setRequests(list);
-    });
-    return () => unsubscribe();
-  }, [currentUser]);
-
-  // Firebase listeners for offers
-  useEffect(() => {
-    if (!realtimeDb) return;
-    const offersRef = ref(realtimeDb, 'offers');
-    const unsubscribe = onValue(offersRef, snapshot => {
-      const val = snapshot.val() || {};
-      const list = Object.keys(val).map(k => ({ id: Number(k), ...val[k] }));
-      setOffers(list);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const handleLoginSuccess = (username) => {
-    setIsLoggedIn(true);
-    setCurrentUser(username);
     
-    // Set mode based on which user logged in
-    if (username === 'ClientAdmin') {
-      setUserMode('client');
-    } else if (username === 'ProviderAdmin') {
-      setUserMode('provider');
+    console.log('🔥 Setting up requests listener...');
+    
+    const requestsRef = ref(realtimeDb, 'requests');
+    const unsubscribe = onValue(requestsRef, (snapshot) => {
+      const val = snapshot.val() || {};
+      console.log('📊 Raw Firebase requests data:', val);
+      
+      // ✅ FIX: Don't override clientId - use what's in Firebase
+      const list = Object.entries(val).map(([key, value]) => ({
+        id: Number(key),
+        ...value,
+        // Only add clientId if it's missing (for backwards compatibility)
+        clientId: value.clientId || 'ClientAdmin'
+      }));
+      
+      console.log('✅ Processed requests:', list.length, 'items');
+      setRequests(list);
+    }, (error) => {
+      console.error('❌ Firebase requests error:', error);
+    });
+    
+    return () => {
+      console.log('🔌 Cleaning up requests listener');
+      unsubscribe();
+    };
+  }, []); // ✅ FIX: Remove currentUser dependency
+
+  // ✅ FIX 3: Firebase listeners for offers
+  useEffect(() => {
+    if (!realtimeDb) {
+      console.warn('⚠️ Firebase not initialized');
+      return;
     }
     
+    console.log('🔥 Setting up offers listener...');
+    
+    const offersRef = ref(realtimeDb, 'offers');
+    const unsubscribe = onValue(offersRef, (snapshot) => {
+      const val = snapshot.val() || {};
+      console.log('📊 Raw Firebase offers data:', val);
+      
+      const list = Object.entries(val).map(([key, value]) => ({
+        id: Number(key),
+        ...value
+      }));
+      
+      console.log('✅ Processed offers:', list.length, 'items');
+      setOffers(list);
+    }, (error) => {
+      console.error('❌ Firebase offers error:', error);
+    });
+    
+    return () => {
+      console.log('🔌 Cleaning up offers listener');
+      unsubscribe();
+    };
+  }, []); // ✅ FIX: Remove dependency array issues
+
+  const handleLoginSuccess = (username) => {
+    console.log('✅ Login success:', username);
+    setIsLoggedIn(true);
+    setCurrentUser(username);
+    if (username === 'ClientAdmin') setUserMode('client');
+    if (username === 'ProviderAdmin') setUserMode('provider');  
+    sessionStorage.setItem('isLoggedIn', 'true');
+    sessionStorage.setItem('username', username);
     setCurrentView('home');
   };
 
   const handleLogout = () => {
+    console.log('👋 Logging out...');
     sessionStorage.removeItem('isLoggedIn');
     sessionStorage.removeItem('username');
     setIsLoggedIn(false);
@@ -147,53 +189,41 @@ function App() {
   const handleOfferUpdate = (updatedOffer) => {
     setOffers(prev => {
       const exists = prev.find(o => o.id === updatedOffer.id);
-      if (exists) {
-        return prev.map(o => o.id === updatedOffer.id ? updatedOffer : o);
-      }
+      if (exists) return prev.map(o => (o.id === updatedOffer.id ? updatedOffer : o));
       return [...prev, updatedOffer];
     });
+    saveOfferRealtime(updatedOffer.id, updatedOffer);
   };
 
   const handleRequestUpdate = (updatedRequest) => {
+    console.log('📝 Updating request:', updatedRequest.id);
     setRequests(prev => {
       const exists = prev.find(r => r.id === updatedRequest.id);
-      if (exists) {
-        return prev.map(r => r.id === updatedRequest.id ? updatedRequest : r);
-      }
+      if (exists) return prev.map(r => (r.id === updatedRequest.id ? updatedRequest : r));
       return [...prev, updatedRequest];
     });
+    saveRequestRealtime(updatedRequest.id, updatedRequest);
   };
 
-  // Filter requests based on current user and mode
   const getFilteredRequests = () => {
     if (userMode === 'client') {
-      // Show only current user's requests
       return requests.filter(r => r.clientId === currentUser);
-    } else {
-      // Show requests from OTHER users only
-      return requests.filter(r => r.clientId !== currentUser);
     }
+    return requests.filter(r => r.clientId !== currentUser);
   };
 
-  // If not logged in, show login page
-  if (!isLoggedIn) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
+  if (!isLoggedIn) return <Login onLoginSuccess={handleLoginSuccess} />;
 
   const renderContent = () => {
     const filteredRequests = getFilteredRequests();
     
     switch (currentView) {
       case 'home':
-        return userMode === 'client' ? (
-          <ClientHome
+        return userMode === 'client' 
+        ? <ClientHome
             requests={filteredRequests}
             userProfile={userProfile}
-            onViewDetails={(id) => {
-              setIsNewRequest(false);
-              setSelectedRequestId(id);
-              setCurrentView('request-details');
-            }}
+            onViewDetails={(id) => { setIsNewRequest(false); setSelectedRequestId(id); setCurrentView('request-details'); }}
             onCreateRequest={() => {
               setIsNewRequest(true);
               const newId = Math.max(0, ...requests.map(r => r.id)) + 1;
@@ -215,146 +245,76 @@ function App() {
             }}
             navigateToProfile={() => setCurrentView('profile')}
           />
-        ) : (
-          <ProviderHome
+         : <ProviderHome
             requests={filteredRequests}
             userProfile={userProfile}
-            onViewDetails={(id) => {
-              setIsNewRequest(false);
-              setSelectedRequestId(id);
-              setCurrentView('request-details');
-            }}
+            onViewDetails={(id) => { setIsNewRequest(false); setSelectedRequestId(id); setCurrentView('request-details'); }}
             onSendOffer={(request) => {
               setSelectedRequestId(request.id);
-              const offerIds = offers.filter(o => o.id != null).map(o => o.id);
-              const maxOfferId = offerIds.length > 0 ? Math.max(...offerIds) : 0;
+              const offerIds = offers.map(o => o.id).filter(id => id != null);
+              const maxOfferId = offerIds.length ? Math.max(...offerIds) : 0;
               setSelectedOfferId(maxOfferId + 1);
               setCurrentView('offer-details');
             }}
             navigateToProfile={() => setCurrentView('profile')}
           />
-        );
 
       case 'messages':
-        return (
-          <MessagesPage
+        return <MessagesPage
             userRole={userMode}
-            onViewRequestDetails={(requestId) => {
-              setSelectedRequestId(requestId);
-              setCurrentView('request-details');
-            }}
-            onViewOfferDetails={(offerId) => {
-              setSelectedOfferId(offerId);
-              setCurrentView('offer-details');
-            }}
-          />
-        );
-
+            onViewRequestDetails={(id) => { setSelectedRequestId(id); setCurrentView('request-details'); }}
+            onViewOfferDetails={(id) => { setSelectedOfferId(id); setCurrentView('offer-details'); }}
+          />;
       case 'offers':
-        return (
-          <Offers
+        return <Offers
             role={userMode}
             offers={offers}
+            currentUser={currentUser}
             onOfferUpdate={handleOfferUpdate}
-            onViewOfferDetails={(offerId) => {
-              setSelectedOfferId(offerId);
-              setCurrentView('offer-details');
-            }}
-          />
-        );
-
+            onViewOfferDetails={(id) => { setSelectedOfferId(id); setCurrentView('offer-details'); }}
+          />;
       case 'profile':
-        return (
-          <Profile 
+        return <Profile 
             role={userMode} 
             setCurrentView={setCurrentView}
             currentUser={currentUser}
             userProfile={userProfile}
-          />
-        );
-
+          />;
       case 'request-details': {
         const existingRequest = requests.find(r => r.id === selectedRequestId);
         const requestData = isNewRequest ? tempRequestData : existingRequest;
-
-        if (!requestData) {
-          return (
-            <div className="p-4 text-center">
-              <div className="text-lg font-semibold text-gray-700 mb-2">
-                Request not found or still loading...
-              </div>
-              <button
-                className="action-btn client-post-btn px-6 py-2"
-                onClick={() => setCurrentView('home')}
-              >
-                Back to Home
-              </button>
-            </div>
-          );
-        }
-
-        return (
-          <RequestDetails
-            isNewRequest={isNewRequest}
-            requestData={requestData}
-            tempRequestData={tempRequestData}
-            setTempRequestData={setTempRequestData}
-            userRole={userMode}
-            currentUser={currentUser}
-            onBackToClientHome={(updatedRequest) => {
-              if (userMode === 'client' && updatedRequest) {
-                handleRequestUpdate(updatedRequest);
-                saveRequestRealtime(updatedRequest.id, updatedRequest);
-              }
-              setCurrentView('home');
-            }}
-            onGoToOffer={(request) => {
-              const existingOffer = offers.find(o => o.requestId === request.id);
-              if (existingOffer) {
-                setSelectedOfferId(existingOffer.id);
-              } else {
-                const offerIds = offers.filter(o => o.id != null).map(o => o.id);
-                const maxOfferId = offerIds.length > 0 ? Math.max(...offerIds) : 0;
-                setSelectedOfferId(maxOfferId + 1);
-              }
-              setSelectedRequestId(request.id);
-              setCurrentView('offer-details');
-            }}
-            onViewClientProfile={(clientId) => {
-              setPreviousView('request-details');
-              setViewingClientProfileId(clientId);
-              setCurrentView('view-client-profile');
-            }}
-          />
-        );
+        if (!requestData) return <div className="p-4 text-center">Request not found...</div>;
+        return <RequestDetails
+        isNewRequest={isNewRequest}
+        requestData={requestData}
+        tempRequestData={tempRequestData}
+        setTempRequestData={setTempRequestData}
+        userRole={userMode}
+        currentUser={currentUser}
+        onBackToClientHome={(updatedRequest) => {
+          if (userMode === 'client' && updatedRequest) handleRequestUpdate(updatedRequest);
+          setCurrentView('home');
+        }}
+        onGoToOffer={(request) => {
+          const existingOffer = offers.find(o => o.requestId === request.id);
+          if (existingOffer) setSelectedOfferId(existingOffer.id);
+          else setSelectedOfferId(Math.max(0, ...offers.map(o => o.id)) + 1);
+          setSelectedRequestId(request.id);
+          setCurrentView('offer-details');
+        }}
+        onViewClientProfile={(clientId) => {
+          setPreviousView('request-details');
+          setViewingClientProfileId(clientId);
+          setCurrentView('view-client-profile');
+        }}
+      />;
       }
-
-      case 'view-client-profile': {
-        // Load profile for the client being viewed
-        const clientProfile = userProfile; // Simplified - in production, load specific user profile
-        
-        if (!clientProfile) {
-          return (
-            <div className="p-4 text-center">
-              <div className="text-lg font-semibold text-red-600 mb-4">
-                Client profile not found
-              </div>
-              <button className="action-btn client-post-btn px-6 py-2" onClick={() => setCurrentView('home')}>
-                Back to Home
-              </button>
-            </div>
-          );
-        }
-
-        return (
-          <ProfileViewOnly
-            role="client"
-            profileData={clientProfile}
-            onBack={() => setCurrentView(previousView)}
-          />
-        );
-      }
-
+      case 'view-client-profile': 
+      return <ProfileViewOnly
+        role="client"
+        profileData={userProfile} 
+        onBack={() => setCurrentView(previousView)}
+      />;
       case 'offer-details': {
         const existingOffer = offers.find(o => o.id === selectedOfferId);
         const isNewOffer = !existingOffer && userMode === 'provider';
@@ -368,56 +328,19 @@ function App() {
           providerId: currentUser,
           requestId: selectedRequestId
         } : null);
-
         const relatedRequest = requests.find(r => r.id === selectedRequestId);
-
-        if (!offerData) {
-          return (
-            <div className="p-4 text-center">
-              <div className="text-lg font-semibold text-gray-700 mb-2">
-                Offer not found
-              </div>
-              <button
-                className="action-btn client-post-btn px-6 py-2"
-                onClick={() => setCurrentView('home')}
-              >
-                Back to Home
-              </button>
-            </div>
-          );
-        }
-
-        if (!relatedRequest) {
-          return (
-            <div className="p-4 text-center">
-              <div className="text-lg font-semibold text-gray-700 mb-2">
-                Related request not found
-              </div>
-              <button
-                className="action-btn client-post-btn px-6 py-2"
-                onClick={() => setCurrentView('home')}
-              >
-                Back to Home
-              </button>
-            </div>
-          );
-        }
-
-        return (
-          <OfferDetails
-            offerData={offerData}
-            requestData={relatedRequest}
-            userRole={userMode}
-            isNewOffer={isNewOffer}
-            onOfferUpdate={handleOfferUpdate}
-            onBackToClientHome={() => setCurrentView(userMode === 'client' ? 'offers' : 'home')}
-            onBackToProviderHome={() => setCurrentView('offers')}
-          />
-        );
+        if (!offerData || !relatedRequest) return <div>Offer or request missing</div>;
+        return <OfferDetails
+          offerData={offerData}
+          requestData={relatedRequest}
+          userRole={userMode}
+          isNewOffer={isNewOffer}
+          onOfferUpdate={handleOfferUpdate}
+          onBackToClientHome={() => setCurrentView(userMode === 'client' ? 'offers' : 'home')}
+          onBackToProviderHome={() => setCurrentView('offers')}
+          />;
       }
-
-      default:
-        return null;
+      default: return null;
     }
   };
 
@@ -431,13 +354,11 @@ function App() {
         setCurrentView={setCurrentView}
         currentUser={currentUser}
       />
-      <main className="main w-full flex-1">
-        {renderContent()}
-      </main>
-      <Menu
-        isOpen={isMenuOpen}
-        close={() => setIsMenuOpen(false)}
-        logout={handleLogout}
+      <main className="main w-full flex-1">{renderContent()}</main>
+      <Menu 
+      isOpen={isMenuOpen} 
+      close={() => setIsMenuOpen(false)} 
+      logout={handleLogout} 
       />
     </div>
   );

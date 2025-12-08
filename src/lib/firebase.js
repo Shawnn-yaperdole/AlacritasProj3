@@ -4,8 +4,7 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { 
   getDatabase, 
-  ref, 
-  set as rtdbSet, 
+  ref,  
   push, 
   onValue, 
   off, 
@@ -65,7 +64,7 @@ export async function saveRequest(requestId, data) {
 export async function saveRequestRealtime(requestId, data) {
   if (!realtimeDb) throw new Error('saveRequestRealtime: Realtime Database not initialized');
   const nodeRef = ref(realtimeDb, `requests/${String(requestId)}`);
-  await rtdbSet(nodeRef, data);
+  await rtdbUpdate(nodeRef, data);
   return nodeRef;
 }
 
@@ -98,7 +97,7 @@ export async function deleteRequest(id) {
 export async function saveProfileRealtime(profileKey, data) {
   if (!realtimeDb) throw new Error('saveProfileRealtime: Realtime Database not initialized');
   const nodeRef = ref(realtimeDb, `profiles/${String(profileKey)}`);
-  await rtdbSet(nodeRef, data);
+  await rtdbUpdate(nodeRef, data);
   return nodeRef;
 }
 
@@ -210,7 +209,7 @@ export async function saveOffer(offerId, data) {
 export async function saveOfferRealtime(offerId, data) {
   if (!realtimeDb) throw new Error('saveOfferRealtime: Realtime Database not initialized');
   const nodeRef = ref(realtimeDb, `offers/${String(offerId)}`);
-  await rtdbSet(nodeRef, data);
+  await rtdbUpdate(nodeRef, data);
   return nodeRef;
 }
 

@@ -1,227 +1,181 @@
-// src/Global/Offers.jsx
-import React, { useState, useEffect } from "react";
-import { saveOfferRealtime } from "../lib/firebase";
+// src/Global/Offers.jsx - Complete Offer Management for Both Roles
+import React, { useState } from "react";
 
-const Offers = ({ role, offers, onOfferUpdate, onViewOfferDetails }) => {
-  const isClient = role === "client";
-  const isProvider = role === "provider";
-
-  const [currentTab, setCurrentTab] = useState("pending");
-  const [filterText, setFilterText] = useState("");
-
-  // Separate state arrays for each tab
-  const [clientPending, setClientPending] = useState([]);
-  const [clientOngoing, setClientOngoing] = useState([]);
-  const [clientHistory, setClientHistory] = useState([]);
-
-  const [providerPending, setProviderPending] = useState([]);
-  const [providerOngoing, setProviderOngoing] = useState([]);
-  const [providerHistory, setProviderHistory] = useState([]);
-
-  // Sync offers prop into categorized state
-  useEffect(() => {
-    if (!offers || offers.length === 0) return;
-
-    const pending = offers.filter(o => o.status === "pending");
-    const ongoing = offers.filter(o => o.status === "accepted" || o.status === "ongoing");
-    const history = offers.filter(o => ["declined", "finished", "cancelled"].includes(o.status));
-
-    if (isClient) {
-      setClientPending(pending);
-      setClientOngoing(ongoing);
-      setClientHistory(history);
-    } else if (isProvider) {
-      setProviderPending(pending);
-      setProviderOngoing(ongoing);
-      setProviderHistory(history);
-    }
-  }, [offers, isClient, isProvider]);
-
-  const getCurrentData = () => {
-    if (isClient) {
-      switch (currentTab) {
-        case "pending":
-          return clientPending;
-        case "ongoing":
-          return clientOngoing;
-        case "history":
-          return clientHistory;
-        default:
-          return [];
-      }
-    } else {
-      switch (currentTab) {
-        case "pending":
-          return providerPending;
-        case "ongoing":
-          return providerOngoing;
-        case "history":
-          return providerHistory;
-        default:
-          return [];
-      }
-    }
-  };
-
-  const statusColor = (status) => {
+const OfferCard = ({ offer, role, onViewDetails, onEdit, onDelete }) => {
+  const getStatusColor = (status) => {
     switch (status) {
-      case "pending":
-        return "status pending";
-      case "accepted":
-      case "ongoing":
-        return "status accepted";
-      case "declined":
-        return "status denied";
-      case "cancelled":
-        return "status cancelled";
-      case "finished":
-        return "status finished";
-      default:
-        return "";
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "accepted": return "bg-green-100 text-green-800";
+      case "declined": return "bg-red-100 text-red-800";
+      case "cancelled": return "bg-gray-100 text-gray-800";
+      case "counter": return "bg-blue-100 text-blue-800";
+      default: return "bg-gray-100 text-gray-800";
     }
   };
-
-  const moveOffer = async (offer, from, to, setFrom, setTo, newStatus) => {
-    try {
-      // Update local state immediately for responsive UI
-      setFrom(list => list.filter(o => o.id !== offer.id));
-      setTo(list => [...list, { ...offer, status: newStatus }]);
-
-      // Update in Firebase
-      const updated = { ...offer, status: newStatus };
-      await saveOfferRealtime(updated.id, updated);
-      
-      // Update parent component
-      onOfferUpdate(updated);
-    } catch (error) {
-      console.error("Failed to update offer:", error);
-      // Revert local state on error
-      setFrom(list => [...list, offer]);
-      setTo(list => list.filter(o => o.id !== offer.id));
-      alert("Failed to update offer. Please try again.");
-    }
-  };
-
-  const filteredData = getCurrentData().filter(item =>
-    item.title.toLowerCase().includes(filterText.toLowerCase())
-  );
-
-  const tabs = ["pending", "ongoing", "history"];
 
   return (
-    <div className="page-container flex flex-col">
-      {/* Bubble Tabs */}
-      <div className="offers-tab-container mb-6">
-        {tabs.map(tab => (
-          <button
-            key={tab}
-            className={`offers-tab ${currentTab === tab ? "active" : ""}`}
-            onClick={() => setCurrentTab(tab)}
-          >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
-      </div>
-
-      {/* Search & Filter */}
-      <div className="flex flex-wrap gap-3 mb-6 items-center">
-        <input
-          type="text"
-          placeholder="Search offers..."
-          className="search-input flex-grow min-w-0"
-          value={filterText}
-          onChange={e => setFilterText(e.target.value)}
+    <div className="card hover:shadow-lg transition-shadow duration-200 flex flex-col">
+      {/* Provider Info */}
+      <div className="flex items-center gap-3 mb-3">
+        <img 
+          src={offer.provider?.profilePic || 'https://ui-avatars.com/api/?name=Provider'} 
+          alt={offer.provider?.fullName}
+          className="w-12 h-12 rounded-full object-cover"
         />
-        <button className="action-btn client-filter-btn flex-shrink-0">
-          Filter Offers
-        </button>
+        <div className="flex-1 min-w-0">
+          <h4 className="font-semibold truncate">{offer.provider?.fullName || 'Provider'}</h4>
+          <p className="text-sm text-gray-600">Request ID: {offer.requestId}</p>
+        </div>
       </div>
 
-      {/* Offer Cards */}
-      <div className="card-list">
-        {filteredData.map(offer => (
-          <div key={offer.id} className="offers-card flex flex-col justify-between">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-semibold text-lg truncate">{offer.title}</h3>
-                <span className={statusColor(offer.status)}>
-                  {offer.status.toUpperCase()}
-                </span>
-              </div>
-              <p className="truncate">
-                {isClient 
-                  ? `From: ${offer.provider?.fullName || offer.provider}` 
-                  : `To: ${offer.client || 'N/A'}`}
-              </p>
-              <p className="text-sm text-gray-600 truncate">{offer.description}</p>
-              <p className="font-semibold mt-2">{offer.amount}</p>
-            </div>
+      {/* Offer Details */}
+      <div className="flex-1 flex flex-col space-y-2">
+        <p className="text-gray-700 line-clamp-2">{offer.description}</p>
+        <p className="text-2xl font-bold text-green-600">₱{parseFloat(offer.amount || 0).toLocaleString()}</p>
+        
+        <span className={`tag px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(offer.status)}`}>
+          {offer.status?.toUpperCase()}
+        </span>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col gap-2 mt-3">
-              {isClient && currentTab === "pending" && (
-                <div className="flex gap-2">
-                  <button
-                    className="action-btn accept-btn flex-1"
-                    onClick={() =>
-                      moveOffer(
-                        offer,
-                        clientPending,
-                        clientOngoing,
-                        setClientPending,
-                        setClientOngoing,
-                        "accepted"
-                      )
-                    }
-                  >
-                    Accept
-                  </button>
-                  <button
-                    className="action-btn decline-btn flex-1"
-                    onClick={() =>
-                      moveOffer(
-                        offer,
-                        clientPending,
-                        clientHistory,
-                        setClientPending,
-                        setClientHistory,
-                        "declined"
-                      )
-                    }
-                  >
-                    Decline
-                  </button>
-                </div>
-              )}
+        {/* Action Buttons */}
+        <div className="flex flex-col gap-2 mt-auto pt-2">
+          <button
+            className="action-btn client-view-btn w-full py-2 text-sm"
+            onClick={() => onViewDetails(offer.id)}
+          >
+            View Details
+          </button>
 
-              {isProvider && currentTab === "pending" && (
-                <button
-                  className="action-btn decline-btn w-full"
-                  onClick={() =>
-                    moveOffer(
-                      offer,
-                      providerPending,
-                      providerHistory,
-                      setProviderPending,
-                      setProviderHistory,
-                      "cancelled"
-                    )
-                  }
-                >
-                  Cancel
-                </button>
-              )}
-
-              {/* View Full Details */}
+          {/* Provider: Edit/Delete their own offers */}
+          {role === "provider" && (
+            <>
               <button
-                className="action-btn viewinfo-btn w-full"
-                onClick={() => onViewOfferDetails(offer.id)}
+                className="action-btn btn-secondary w-full py-2 text-sm"
+                onClick={() => onEdit(offer.id)}
               >
-                View Full Details
+                Edit Offer
               </button>
-            </div>
+              <button
+                className="action-btn btn-secondary w-full py-2 text-sm bg-red-500 hover:bg-red-600 text-white"
+                onClick={() => onDelete(offer.id)}
+              >
+                Delete Offer
+              </button>
+            </>
+          )}
+
+          {/* Client: Accept/Decline/Counter */}
+          {role === "client" && offer.status === "pending" && (
+            <>
+              <button
+                className="action-btn client-post-btn w-full py-2 text-sm"
+                onClick={() => onViewDetails(offer.id)}
+              >
+                Accept / Decline
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Offers = ({ role, offers, onOfferUpdate, onViewOfferDetails, currentUser }) => {
+  const [filterText, setFilterText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Filter offers based on role
+  const roleFilteredOffers = role === "client" 
+    ? offers.filter(o => o.requestId && o.providerId !== currentUser) // Client sees offers TO their requests
+    : offers.filter(o => o.providerId === currentUser); // Provider sees their own offers
+
+  // Apply search and status filters
+  const filteredOffers = roleFilteredOffers.filter(offer => {
+    const matchesSearch = filterText === "" || 
+      offer.description?.toLowerCase().includes(filterText.toLowerCase()) ||
+      offer.provider?.fullName?.toLowerCase().includes(filterText.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || offer.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleDelete = async (offerId) => {
+    const offer = offers.find(o => o.id === offerId);
+    if (!offer) return;
+
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this offer? This action cannot be undone."
+    );
+    if (!confirmDelete) return;
+
+    try {
+      const updatedOffer = { ...offer, status: "cancelled" };
+      onOfferUpdate(updatedOffer);
+    } catch (error) {
+      console.error("Failed to delete offer:", error);
+      alert("Failed to delete offer");
+    }
+  };
+
+  return (
+    <div className="page-container flex flex-col space-y-6">
+      <h2 className="text-2xl font-bold text-client-header">
+        {role === "client" ? "Offers Received" : "My Offers"}
+      </h2>
+
+      {/* Search and Filter Controls */}
+      <div className="controls flex flex-wrap gap-4 items-center">
+        <input
+          className="search-input px-3 py-2 border border-gray-300 rounded-md flex-grow min-w-0"
+          placeholder={role === "client" ? "Search offers..." : "Search my offers..."}
+          value={filterText}
+          onChange={(e) => setFilterText(e.target.value)}
+        />
+
+        <select
+          className="px-3 py-2 border border-gray-300 rounded-md"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">All Status</option>
+          <option value="pending">Pending</option>
+          <option value="accepted">Accepted</option>
+          <option value="declined">Declined</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="counter">Counter Offer</option>
+        </select>
+      </div>
+
+      {/* Offer Cards Grid */}
+      <div
+        className="card-list grid gap-6"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 320px))" }}
+      >
+        {filteredOffers.length > 0 ? (
+          filteredOffers.map((offer) => (
+            <OfferCard
+              key={offer.id}
+              offer={offer}
+              role={role}
+              onViewDetails={onViewOfferDetails}
+              onEdit={onViewOfferDetails}
+              onDelete={handleDelete}
+            />
+          ))
+        ) : (
+          <div className="col-span-full text-center py-12">
+            <p className="text-gray-500 text-lg">
+              {role === "client" ? "No offers received yet." : "You haven't sent any offers yet."}
+            </p>
+            <p className="text-gray-400 text-sm mt-2">
+              {role === "client" 
+                ? "Offers from providers will appear here." 
+                : "Browse requests and send offers to get started!"}
+            </p>
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
