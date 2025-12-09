@@ -40,13 +40,13 @@
   "main": "eslint.config.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Shawnn-yaperdole/Alacritas.git"
+    "url": "git+https://github.com/Shawnn-yaperdole/AlacritasProj3.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Shawnn-yaperdole/Alacritas/issues"
+    "url": "https://github.com/Shawnn-yaperdole/AlacritasProj3/issues"
   },
-  "homepage": "https://github.com/Shawnn-yaperdole/Alacritas#readme"
+  "homepage": "https://github.com/Shawnn-yaperdole/AlacritasProj3#readme"
 }

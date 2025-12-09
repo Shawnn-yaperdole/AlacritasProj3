@@ -25,11 +25,17 @@
     },
 
     "chats": {
+      ".read": true,
+      ".write": true,
+      
       "$chatId": {
         ".read": true,
         ".write": true,
         
         "messages": {
+          ".read": true,
+          ".write": true,
+          
           "$msgId": {
             ".validate": "newData.hasChildren(['text', 'timestamp', 'sender']) && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 1000 && !newData.child('text').val().matches(/.*\\d{7,}.*/) && newData.child('timestamp').isNumber() && newData.child('sender').isString()"
           }

@@ -56,18 +56,6 @@ const OfferCard = ({ offer, role, onViewDetails}) => {
             View Details
           </button>
 
-
-          {/* Client: Accept/Decline/Counter */}
-          {role === "client" && (offer.status === "pending" || offer.status === "counter") && (
-            <>
-              <button
-                className="action-btn client-post-btn w-full py-2 text-sm"
-                onClick={() => onViewDetails(offer.id)}
-              >
-                Accept / Decline
-              </button>
-            </>
-          )}
         </div>
       </div>
     </div>
@@ -158,7 +146,7 @@ const Offers = ({ role, offers, requests, currentUser, onOfferUpdate, onViewOffe
       {/* Offer Cards Grid */}
       <div
         className="card-list grid gap-6"
-        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 320px))" }}
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 270px))" }}
       >
         {filteredOffers.length > 0 ? (
           filteredOffers.map((offer) => (

@@ -16,9 +16,10 @@ import {
   saveRequestRealtime, 
   saveOfferRealtime,
   saveProfileRealtime, 
-  realtimeDb 
+  realtimeDb,
+  createChat
 } from './lib/firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, update as rtdbUpdate } from 'firebase/database';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -183,13 +184,58 @@ function App() {
     setCurrentView('home');
   };
 
-  const handleOfferUpdate = (updatedOffer) => {
+  const handleOfferUpdate = async (updatedOffer) => {
     setOffers(prev => {
       const exists = prev.find(o => o.id === updatedOffer.id);
       if (exists) return prev.map(o => (o.id === updatedOffer.id ? updatedOffer : o));
       return [...prev, updatedOffer];
     });
-    saveOfferRealtime(updatedOffer.id, updatedOffer);
+    await saveOfferRealtime(updatedOffer.id, updatedOffer);
+
+    // Create chat when offer is accepted
+    if (updatedOffer.status === 'accepted') {
+      const chatId = `${updatedOffer.requestId}-${updatedOffer.providerId}`;
+      const request = requests.find(r => r.id === updatedOffer.requestId);
+      
+      try {
+        const provider = updatedOffer.provider || {};
+        const meta = {
+          name: provider.fullName || 'Provider',
+          avatar: provider.profilePic || 'https://ui-avatars.com/api/?name=Provider',
+          offerId: updatedOffer.id,
+          requestId: updatedOffer.requestId,
+          offerStatus: 'accepted',
+          lastMsg: 'Offer accepted!',
+          lastMsgTime: Date.now()
+        };
+        await createChat(chatId, meta);
+        console.log('Chat created for accepted offer:', chatId);
+      } catch (err) {
+        console.error('Failed to create chat:', err);
+      }
+    }
+    
+    // Also create chat for counter offers
+    if (updatedOffer.status === 'counter') {
+      const chatId = `${updatedOffer.requestId}-${updatedOffer.providerId}`;
+      
+      try {
+        const provider = updatedOffer.provider || {};
+        const meta = {
+          name: provider.fullName?.split(' ')[0] || 'Provider',
+          avatar: 'https://ui-avatars.com/api/?name=Provider',
+          offerId: updatedOffer.id,
+          requestId: updatedOffer.requestId,
+          offerStatus: 'counter',
+          lastMsg: 'Counter offer sent',
+          lastMsgTime: Date.now()
+        };
+        await createChat(chatId, meta);
+        console.log('Chat created for counter offer:', chatId);
+      } catch (err) {
+        console.error('Failed to create chat:', err);
+      }
+    }
   };
 
   const handleRequestUpdate = (updatedRequest) => {
@@ -283,17 +329,36 @@ function App() {
       case 'messages':
         return <MessagesPage
             userRole={userMode}
+            currentUser={currentUser}
+            offers={offers}
+            requests={requests}
+            userProfile={userProfile}
             onViewRequestDetails={(id) => { setSelectedRequestId(id); setCurrentView('request-details'); }}
-            onViewOfferDetails={(id) => { setSelectedOfferId(id); setCurrentView('offer-details'); }}
+            onViewOfferDetails={(id) => { 
+              const offer = offers.find(o => o.id === id);
+              if (offer) {
+                setSelectedOfferId(id);
+                setSelectedRequestId(offer.requestId);
+                setCurrentView('offer-details');
+              }
+            }}
+            onOfferUpdate={handleOfferUpdate}
           />;
       case 'offers':
         return <Offers
             role={userMode}
             offers={offers}
-            requests={requests} // ✅ Pass requests to match offers with their request creators
+            requests={requests}
             currentUser={currentUser}
             onOfferUpdate={handleOfferUpdate}
-            onViewOfferDetails={(id) => { setSelectedOfferId(id); setCurrentView('offer-details'); }}
+            onViewOfferDetails={(id) => { 
+              const offer = offers.find(o => o.id === id);
+              if (offer) {
+                setSelectedOfferId(id);
+                setSelectedRequestId(offer.requestId); // ✅ Set the related request ID
+                setCurrentView('offer-details');
+              }
+            }}
           />;
       case 'profile':
         return <Profile 

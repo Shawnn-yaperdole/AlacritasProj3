@@ -11,7 +11,8 @@ import {
   query, 
   orderByChild, 
   update as rtdbUpdate,
-  remove 
+  remove,
+  get
 } from 'firebase/database';
 
 // Use environment variables from .env file
@@ -155,6 +156,7 @@ export function subscribeToChatMessages(chatId, onMessages) {
   };
 }
 
+// ✅ FIXED: Subscribe to chats with FULL metadata
 export function subscribeToChats(onChats) {
   if (!realtimeDb) {
     console.warn('subscribeToChats: Realtime DB not initialized');
@@ -162,28 +164,83 @@ export function subscribeToChats(onChats) {
   }
 
   const chatsRef = ref(realtimeDb, 'chats');
+  
   const listener = onValue(chatsRef, (snapshot) => {
     const val = snapshot.val() || {};
-    const list = Object.keys(val).map((k) => {
-      const meta = val[k].meta || {};
+    
+    // Convert Firebase object to array with FULL metadata
+    const list = Object.keys(val).map((chatId) => {
+      const chatData = val[chatId] || {};
+      const meta = chatData.meta || {};
+      
+      // ✅ Return complete chat object with ALL meta fields
       return {
-        id: k,
-        name: meta.name || meta.title || `Chat ${k}`,
-        avatar: meta.avatar || '',
+        id: chatId,
+        meta: {
+          // Core identifiers
+          chatId: meta.chatId || chatId,
+          offerId: meta.offerId,
+          requestId: meta.requestId,
+          clientId: meta.clientId,
+          providerId: meta.providerId,
+          
+          // Status flags
+          offerStatus: meta.offerStatus,
+          isAccepted: meta.isAccepted,
+          
+          // User information
+          clientName: meta.clientName,
+          providerName: meta.providerName,
+          clientFirstName: meta.clientFirstName,
+          providerFirstName: meta.providerFirstName,
+          clientAvatar: meta.clientAvatar,
+          providerAvatar: meta.providerAvatar,
+          
+          // Request details (for accepted offers)
+          requestTitle: meta.requestTitle,
+          requestLocation: meta.requestLocation,
+          requestDate: meta.requestDate,
+          requestThumbnail: meta.requestThumbnail,
+          offerAmount: meta.offerAmount,
+          
+          // Provider details (for counter offers)
+          providerSkills: meta.providerSkills,
+          
+          // Chat metadata
+          lastMsg: meta.lastMsg || '',
+          lastMsgTime: meta.lastMsgTime || 0,
+          
+          // Legacy fields for backward compatibility
+          name: meta.name || meta.clientName || meta.providerName || `Chat ${chatId}`,
+          avatar: meta.avatar || meta.clientAvatar || meta.providerAvatar || '',
+          title: meta.title
+        },
+        
+        // Top-level convenience fields (for easy access)
+        name: meta.name || meta.clientName || meta.providerName || `Chat ${chatId}`,
+        avatar: meta.avatar || meta.clientAvatar || meta.providerAvatar || '',
         lastMsg: meta.lastMsg || '',
-        lastMsgTime: meta.lastMsgTime || 0,
+        lastMsgTime: meta.lastMsgTime || 0
       };
     });
 
+    // Sort by most recent message first
     list.sort((a, b) => (b.lastMsgTime || 0) - (a.lastMsgTime || 0));
+    
+    console.log('📨 Chats loaded:', list.length, 'chats');
     onChats(list);
+  }, (error) => {
+    console.error('❌ Error loading chats:', error);
+    onChats([]);
   });
 
+  // Return cleanup function
   return () => {
     try {
-      off(chatsRef);
+      off(chatsRef, listener);
+      console.log('🔌 Unsubscribed from chats');
     } catch (e) {
-      console.warn('Error removing chats listener', e);
+      console.warn('⚠️ Error removing chats listener:', e);
     }
   };
 }
