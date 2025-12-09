@@ -1,4 +1,4 @@
-// src/Global/RequestDetails.jsx - FULL CODE WITH WORKING MAPS (NO MOCK DATA)
+// src/Global/RequestDetails.jsx - FIXED to ensure clientId is always saved
 import React, { useState, useEffect } from "react";
 import { uploadFileToCloudinary } from "../lib/cloudinary";
 import { saveRequestRealtime } from "../lib/firebase";
@@ -118,6 +118,13 @@ const RequestDetails = ({
         thumbnailUrl = imagesUrls[0] || "";
       }
 
+      // ✅ CRITICAL: Determine the clientId
+      // For new requests: use currentUser
+      // For existing requests: keep the original clientId or use currentUser as fallback
+      const finalClientId = requestData.clientId || currentUser;
+
+      console.log('💾 Saving request with clientId:', finalClientId, 'currentUser:', currentUser, 'isNewRequest:', isNewRequest);
+
       // Step 2: Create payload with uploaded URLs
       let payload = {
         ...requestData,
@@ -128,8 +135,9 @@ const RequestDetails = ({
         thumbnail: thumbnailUrl,
         images: imagesUrls,
         latLon: selectedLatLon,
-        clientId: requestData.clientId || currentUser,
-        date: requestData.date || new Date().toISOString().split('T')[0]
+        clientId: finalClientId, // ✅ ALWAYS set clientId
+        date: requestData.date || new Date().toISOString().split('T')[0],
+        status: requestData.status || 'active' // ✅ Set default status
       };
 
       // Step 3: Assign ID for new requests
@@ -137,11 +145,13 @@ const RequestDetails = ({
         payload.id = Date.now(); // Use timestamp as unique ID
       }
 
+      console.log('📤 Final payload:', payload);
+
       // Step 4: Save to Firebase Realtime Database
       const idToSave = payload.id || requestData?.id;
       if (idToSave) {
         await saveRequestRealtime(idToSave, payload);
-        console.log("Saved to Realtime Database successfully");
+        console.log("✅ Saved to Realtime Database successfully with ID:", idToSave);
       }
 
       // Step 5: Update local state
@@ -157,7 +167,7 @@ const RequestDetails = ({
       }, 1000);
 
     } catch (err) {
-      console.error("Failed to save request", err);
+      console.error("❌ Failed to save request", err);
       setSaveMessage("Failed to save: " + (err.message || err));
       alert("Failed to save request. Please check console for details.");
     } finally {

@@ -1,7 +1,7 @@
-// src/Global/Offers.jsx - Complete Offer Management for Both Roles
+// src/Global/Offers.jsx - FIXED VERSION with proper offer filtering
 import React, { useState } from "react";
 
-const OfferCard = ({ offer, role, onViewDetails, onEdit, onDelete }) => {
+const OfferCard = ({ offer, role, onViewDetails}) => {
   const getStatusColor = (status) => {
     switch (status) {
       case "pending": return "bg-yellow-100 text-yellow-800";
@@ -14,31 +14,41 @@ const OfferCard = ({ offer, role, onViewDetails, onEdit, onDelete }) => {
   };
 
   return (
-    <div className="card hover:shadow-lg transition-shadow duration-200 flex flex-col">
+    <div className="card hover:shadow-lg transition-shadow duration-200 flex flex-col" style={{ minHeight: '480px', height: 'auto' }}>
       {/* Provider Info */}
       <div className="flex items-center gap-3 mb-3">
         <img 
           src={offer.provider?.profilePic || 'https://ui-avatars.com/api/?name=Provider'} 
           alt={offer.provider?.fullName}
-          className="w-12 h-12 rounded-full object-cover"
+          className="w-12 h-12 rounded-full object-cover flex-shrink-0"
         />
         <div className="flex-1 min-w-0">
           <h4 className="font-semibold truncate">{offer.provider?.fullName || 'Provider'}</h4>
-          <p className="text-sm text-gray-600">Request ID: {offer.requestId}</p>
         </div>
       </div>
 
       {/* Offer Details */}
-      <div className="flex-1 flex flex-col space-y-2">
-        <p className="text-gray-700 line-clamp-2">{offer.description}</p>
-        <p className="text-2xl font-bold text-green-600">₱{parseFloat(offer.amount || 0).toLocaleString()}</p>
+      <div className="flex-1 flex flex-col">
+        <div className="mb-3">
+          <p className="text-gray-700 text-sm" style={{ 
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            minHeight: '60px'
+          }}>
+            {offer.description}
+          </p>
+        </div>
         
-        <span className={`tag px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(offer.status)}`}>
+        <p className="text-2xl font-bold text-green-600 mb-2">₱{parseFloat(offer.amount || 0).toLocaleString()}</p>
+        
+        <span className={`tag px-3 py-1 rounded-full text-sm font-semibold self-start mb-3 ${getStatusColor(offer.status)}`}>
           {offer.status?.toUpperCase()}
         </span>
 
-        {/* Action Buttons */}
-        <div className="flex flex-col gap-2 mt-auto pt-2">
+        {/* Action Buttons - Always at bottom */}
+        <div className="flex flex-col gap-2 mt-auto">
           <button
             className="action-btn client-view-btn w-full py-2 text-sm"
             onClick={() => onViewDetails(offer.id)}
@@ -46,26 +56,9 @@ const OfferCard = ({ offer, role, onViewDetails, onEdit, onDelete }) => {
             View Details
           </button>
 
-          {/* Provider: Edit/Delete their own offers */}
-          {role === "provider" && (
-            <>
-              <button
-                className="action-btn btn-secondary w-full py-2 text-sm"
-                onClick={() => onEdit(offer.id)}
-              >
-                Edit Offer
-              </button>
-              <button
-                className="action-btn btn-secondary w-full py-2 text-sm bg-red-500 hover:bg-red-600 text-white"
-                onClick={() => onDelete(offer.id)}
-              >
-                Delete Offer
-              </button>
-            </>
-          )}
 
           {/* Client: Accept/Decline/Counter */}
-          {role === "client" && offer.status === "pending" && (
+          {role === "client" && (offer.status === "pending" || offer.status === "counter") && (
             <>
               <button
                 className="action-btn client-post-btn w-full py-2 text-sm"
@@ -81,14 +74,28 @@ const OfferCard = ({ offer, role, onViewDetails, onEdit, onDelete }) => {
   );
 };
 
-const Offers = ({ role, offers, onOfferUpdate, onViewOfferDetails, currentUser }) => {
+const Offers = ({ role, offers, requests, currentUser, onOfferUpdate, onViewOfferDetails }) => {
   const [filterText, setFilterText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Filter offers based on role
+  // ✅ FIXED: Filter offers based on role and request ownership
+  // In CLIENT mode: Show offers for MY requests (I'm the request creator)
+  // In PROVIDER mode: Show MY offers (I created the offers)
   const roleFilteredOffers = role === "client" 
-    ? offers.filter(o => o.requestId && o.providerId !== currentUser) // Client sees offers TO their requests
-    : offers.filter(o => o.providerId === currentUser); // Provider sees their own offers
+    ? offers.filter(o => {
+        // Find the request this offer is for
+        const request = requests.find(r => r.id === o.requestId);
+        // Show offer if the request belongs to current user AND offer is from someone else
+        return request && request.clientId === currentUser && o.providerId !== currentUser;
+      })
+    : offers.filter(o => o.providerId === currentUser); // Show offers I created
+
+  console.log('🔍 Offer filtering:', { 
+    role, 
+    currentUser, 
+    totalOffers: offers.length, 
+    filteredOffers: roleFilteredOffers.length 
+  });
 
   // Apply search and status filters
   const filteredOffers = roleFilteredOffers.filter(offer => {
@@ -160,8 +167,6 @@ const Offers = ({ role, offers, onOfferUpdate, onViewOfferDetails, currentUser }
               offer={offer}
               role={role}
               onViewDetails={onViewOfferDetails}
-              onEdit={onViewOfferDetails}
-              onDelete={handleDelete}
             />
           ))
         ) : (

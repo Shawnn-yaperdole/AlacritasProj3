@@ -40,12 +40,12 @@ function App() {
   const [offers, setOffers] = useState([]);
   const [userProfile, setUserProfile] = useState(null);
 
-  // ✅ FIX 1: Check login state immediately on mount (synchronously)
+  // Restore session from sessionStorage
   useEffect(() => {
     const loggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
     const username = sessionStorage.getItem('username');
     
-    console.log('🔐 Restoring session:', { loggedIn, username });
+    console.log('Restoring session:', { loggedIn, username });
     
     if (loggedIn && username) {
       setIsLoggedIn(true);
@@ -59,17 +59,16 @@ function App() {
   useEffect(() => {
     if (!realtimeDb || !currentUser) return;
     
-    console.log('👤 Loading profile for:', currentUser);
+    console.log('Loading profile for:', currentUser);
     
     const profileRef = ref(realtimeDb, `profiles/${currentUser}`);
     const unsubscribe = onValue(profileRef, snapshot => {
       const data = snapshot.val();
       if (data) {
-        console.log('✅ Profile loaded:', data);
+        console.log('Profile loaded:', data);
         setUserProfile(data);
       } else {
-        console.log('📝 Creating default profile for:', currentUser);
-        // Initialize default profile if doesn't exist
+        console.log('Creating default profile for:', currentUser);
         const defaultProfile = {
           fullName: currentUser === 'ClientAdmin' ? 'Jane Client' : 'John Provider',
           email: currentUser === 'ClientAdmin' ? 'jane@client.com' : 'john@provider.com',
@@ -94,48 +93,46 @@ function App() {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // ✅ FIX 2: Firebase listeners for requests - DON'T modify clientId
+  // Load requests from Firebase
   useEffect(() => {
     if (!realtimeDb) {
-      console.warn('⚠️ Firebase not initialized');
+      console.warn('Firebase not initialized');
       return;
     }
     
-    console.log('🔥 Setting up requests listener...');
+    console.log('Setting up requests listener...');
     
     const requestsRef = ref(realtimeDb, 'requests');
     const unsubscribe = onValue(requestsRef, (snapshot) => {
       const val = snapshot.val() || {};
-      console.log('📊 Raw Firebase requests data:', val);
+      console.log('Raw Firebase requests data:', val);
       
-      // ✅ FIX: Don't override clientId - use what's in Firebase
       const list = Object.entries(val).map(([key, value]) => ({
         id: Number(key),
         ...value,
-        // Only add clientId if it's missing (for backwards compatibility)
         clientId: value.clientId || 'ClientAdmin'
       }));
       
-      console.log('✅ Processed requests:', list.length, 'items');
+      console.log('Processed requests:', list.length, 'items');
       setRequests(list);
     }, (error) => {
-      console.error('❌ Firebase requests error:', error);
+      console.error('Firebase requests error:', error);
     });
     
     return () => {
-      console.log('🔌 Cleaning up requests listener');
+      console.log('Cleaning up requests listener');
       unsubscribe();
     };
-  }, []); // ✅ FIX: Remove currentUser dependency
+  }, []); 
 
-  // ✅ FIX 3: Firebase listeners for offers
+  // Load offers from Firebase
   useEffect(() => {
     if (!realtimeDb) {
-      console.warn('⚠️ Firebase not initialized');
+      console.warn('Firebase not initialized');
       return;
     }
     
-    console.log('🔥 Setting up offers listener...');
+    console.log('Setting up offers listener...');
     
     const offersRef = ref(realtimeDb, 'offers');
     const unsubscribe = onValue(offersRef, (snapshot) => {
@@ -157,10 +154,10 @@ function App() {
       console.log('🔌 Cleaning up offers listener');
       unsubscribe();
     };
-  }, []); // ✅ FIX: Remove dependency array issues
+  }, []); 
 
   const handleLoginSuccess = (username) => {
-    console.log('✅ Login success:', username);
+    console.log('Login success:', username);
     setIsLoggedIn(true);
     setCurrentUser(username);
     if (username === 'ClientAdmin') setUserMode('client');
@@ -171,7 +168,7 @@ function App() {
   };
 
   const handleLogout = () => {
-    console.log('👋 Logging out...');
+    console.log('Logging out...');
     sessionStorage.removeItem('isLoggedIn');
     sessionStorage.removeItem('username');
     setIsLoggedIn(false);
@@ -196,20 +193,44 @@ function App() {
   };
 
   const handleRequestUpdate = (updatedRequest) => {
-    console.log('📝 Updating request:', updatedRequest.id);
+    console.log('Updating request:', updatedRequest.id, 'clientId:', updatedRequest.clientId);
+    
+    // ✅ Ensure clientId is always set
+    const requestWithClientId = {
+      ...updatedRequest,
+      clientId: updatedRequest.clientId || currentUser
+    };
+    
     setRequests(prev => {
-      const exists = prev.find(r => r.id === updatedRequest.id);
-      if (exists) return prev.map(r => (r.id === updatedRequest.id ? updatedRequest : r));
-      return [...prev, updatedRequest];
+      const exists = prev.find(r => r.id === requestWithClientId.id);
+      if (exists) return prev.map(r => (r.id === requestWithClientId.id ? requestWithClientId : r));
+      return [...prev, requestWithClientId];
     });
-    saveRequestRealtime(updatedRequest.id, updatedRequest);
+    saveRequestRealtime(requestWithClientId.id, requestWithClientId);
   };
 
+  // ✅ FIXED: Filter requests based on current mode
+  // In CLIENT mode: Show only MY requests (where I'm the creator)
+  // In PROVIDER mode: Show OTHER users' requests (where I'm NOT the creator)
   const getFilteredRequests = () => {
+    console.log('🔍 Filtering requests:', {
+      userMode,
+      currentUser,
+      totalRequests: requests.length,
+      requestsWithClientIds: requests.map(r => ({ id: r.id, clientId: r.clientId, title: r.title }))
+    });
+    
     if (userMode === 'client') {
-      return requests.filter(r => r.clientId === currentUser);
+      // Show requests I created
+      const filtered = requests.filter(r => r.clientId === currentUser);
+      console.log('Client mode - showing MY requests:', filtered.length);
+      return filtered;
+    } else {
+      // Show requests created by OTHER users
+      const filtered = requests.filter(r => r.clientId !== currentUser);
+      console.log('Provider mode - showing OTHER users requests:', filtered.length);
+      return filtered;
     }
-    return requests.filter(r => r.clientId !== currentUser);
   };
 
   if (!isLoggedIn) return <Login onLoginSuccess={handleLoginSuccess} />;
@@ -237,7 +258,7 @@ function App() {
                 description: '',
                 thumbnail: '',
                 images: [],
-                clientId: currentUser,
+                clientId: currentUser, // ✅ Always set creator
               };
               setSelectedRequestId(newId);
               setTempRequestData(newRequest);
@@ -269,6 +290,7 @@ function App() {
         return <Offers
             role={userMode}
             offers={offers}
+            requests={requests} // ✅ Pass requests to match offers with their request creators
             currentUser={currentUser}
             onOfferUpdate={handleOfferUpdate}
             onViewOfferDetails={(id) => { setSelectedOfferId(id); setCurrentView('offer-details'); }}

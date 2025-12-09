@@ -1,4 +1,4 @@
-// src/Provider/ProviderHome.jsx
+// src/Provider/ProviderHome.jsx - FIXED to show all requests
 import React, { useState, useRef, useEffect } from "react";
 
 // RequestCard
@@ -86,21 +86,32 @@ const ProviderHome = ({ requests = [], onViewDetails, onSendOffer, navigateToPro
   // Get communities from user profile or default to empty array
   const providerCommunities = userProfile?.communities || ["Baguio City"];
 
-  // Horizontal scroll refs
-  const communityRefs = providerCommunities.reduce((acc, community) => {
-    acc[community] = useRef(null);
-    return acc;
-  }, {});
+  console.log('🏠 ProviderHome - Received requests:', requests.length);
+  console.log('📍 Provider communities:', providerCommunities);
+  console.log('📋 All requests:', requests.map(r => ({ id: r.id, title: r.title, location: r.location, clientId: r.clientId })));
 
-  const [scrollStatus, setScrollStatus] = useState(
-    providerCommunities.reduce((acc, community) => {
-      acc[community] = { left: false, right: false };
-      return acc;
-    }, {})
-  );
+  // ✅ FIX: Use useMemo to stabilize the locations list
+  const displayLocations = React.useMemo(() => {
+    const allLocations = [...new Set(requests.map(r => r.location).filter(Boolean))];
+    return [...new Set([...providerCommunities, ...allLocations])];
+  }, [requests, providerCommunities]);
+
+  // ✅ FIX: Use a stable ref object that doesn't change
+  const communityRefsRef = useRef({});
+  
+  // Initialize refs for new communities
+  React.useEffect(() => {
+    displayLocations.forEach(loc => {
+      if (!communityRefsRef.current[loc]) {
+        communityRefsRef.current[loc] = React.createRef();
+      }
+    });
+  }, [displayLocations]);
+
+  const [scrollStatus, setScrollStatus] = useState({});
 
   const updateScrollStatus = (community) => {
-    const container = communityRefs[community].current;
+    const container = communityRefsRef.current[community]?.current;
     if (!container) return;
     setScrollStatus(prev => ({
       ...prev,
@@ -112,7 +123,7 @@ const ProviderHome = ({ requests = [], onViewDetails, onSendOffer, navigateToPro
   };
 
   const scroll = (community, direction) => {
-    const container = communityRefs[community].current;
+    const container = communityRefsRef.current[community]?.current;
     if (!container) return;
     const scrollAmount = 300;
     container.scrollBy({ left: direction === "right" ? scrollAmount : -scrollAmount, behavior: "smooth" });
@@ -180,6 +191,8 @@ const ProviderHome = ({ requests = [], onViewDetails, onSendOffer, navigateToPro
     return match;
   });
 
+  console.log('🔍 After filtering:', filteredRequests.length, 'requests');
+
   const sortedRequests = dateFilter
     ? filteredRequests.slice().sort((a, b) => {
         const aTime = new Date(a.date).getTime();
@@ -187,6 +200,8 @@ const ProviderHome = ({ requests = [], onViewDetails, onSendOffer, navigateToPro
         return dateFilter === "recent" ? bTime - aTime : aTime - bTime;
       })
     : filteredRequests;
+
+  console.log('📊 Final sorted requests:', sortedRequests.length);
 
   return (
     <div className="page-container flex flex-col space-y-6">
@@ -240,7 +255,7 @@ const ProviderHome = ({ requests = [], onViewDetails, onSendOffer, navigateToPro
       
       {activeFilter === "community" && (
         <div className="flex flex-col gap-2">
-          {providerCommunities.map(comm => (
+          {displayLocations.map(comm => (
             <button
               key={comm}
               className={`action-btn px-3 py-1 ${communityFilter === comm ? "bg-blue-500 text-white" : ""}`}
@@ -284,9 +299,13 @@ const ProviderHome = ({ requests = [], onViewDetails, onSendOffer, navigateToPro
         </div>
       ) : (
         <div className="flex flex-col gap-10 mt-4">
-          {providerCommunities.map((community) => {
+          {displayLocations.map((community) => {
             let communityRequests = sortedRequests.filter(r => r.location === community);
+            
+            console.log(`📍 Community "${community}": ${communityRequests.length} requests`);
+            
             if (!communityRequests.length) return null;
+            
             return (
               <div key={community}>
                 <div className="flex justify-between items-center mb-3">
@@ -307,7 +326,11 @@ const ProviderHome = ({ requests = [], onViewDetails, onSendOffer, navigateToPro
 
                 <div 
                   className="flex gap-6 overflow-x-auto scrollbar-hide" 
-                  ref={communityRefs[community]} 
+                  ref={el => {
+                    if (el && communityRefsRef.current[community]) {
+                      communityRefsRef.current[community].current = el;
+                    }
+                  }}
                   onScroll={() => updateScrollStatus(community)}
                 >
                   {communityRequests.map(req => (
