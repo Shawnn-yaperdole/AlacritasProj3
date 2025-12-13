@@ -1,4 +1,4 @@
-// src/App.jsx - FIXED VERSION
+// src/App.jsx 
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import Header from './Global/Header';

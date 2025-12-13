@@ -1,12 +1,5 @@
+// src/Global/ChatBubble.jsx
 import React from 'react';
-
-// ChatBubble: renders a single message bubble with left/right alignment
-// Props:
-// - msg: message object ({ text, timestamp, senderId, senderRole })
-// - isSent: boolean, true when message is sent by the current user
-// - currentUserPic: URL for the current user avatar (shown on right for sent)
-// - chatAvatar: URL for the other user's avatar (shown on left for received)
-// - userRole: current user's role ('client'|'provider')
 
 export default function ChatBubble({ msg, isSent, currentUserPic, chatAvatar, userRole }) {
   const timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';

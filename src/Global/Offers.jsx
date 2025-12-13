@@ -1,4 +1,4 @@
-// src/Global/Offers.jsx - FIXED VERSION with proper offer filtering
+// src/Global/Offers.jsx 
 import React, { useState } from "react";
 
 const OfferCard = ({ offer, role, onViewDetails}) => {

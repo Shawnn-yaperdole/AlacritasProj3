@@ -1,5 +1,4 @@
 // src/lib/firebase.js
-// Lightweight Firebase (Firestore + Realtime DB) helper. Uses Vite env vars.
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { 
@@ -15,7 +14,6 @@ import {
   get
 } from 'firebase/database';
 
-// Use environment variables from .env file
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -156,7 +154,6 @@ export function subscribeToChatMessages(chatId, onMessages) {
   };
 }
 
-// ✅ FIXED: Subscribe to chats with FULL metadata
 export function subscribeToChats(onChats) {
   if (!realtimeDb) {
     console.warn('subscribeToChats: Realtime DB not initialized');
@@ -173,7 +170,6 @@ export function subscribeToChats(onChats) {
       const chatData = val[chatId] || {};
       const meta = chatData.meta || {};
       
-      // ✅ Return complete chat object with ALL meta fields
       return {
         id: chatId,
         meta: {
@@ -183,11 +179,9 @@ export function subscribeToChats(onChats) {
           requestId: meta.requestId,
           clientId: meta.clientId,
           providerId: meta.providerId,
-          
           // Status flags
           offerStatus: meta.offerStatus,
           isAccepted: meta.isAccepted,
-          
           // User information
           clientName: meta.clientName,
           providerName: meta.providerName,
@@ -195,35 +189,29 @@ export function subscribeToChats(onChats) {
           providerFirstName: meta.providerFirstName,
           clientAvatar: meta.clientAvatar,
           providerAvatar: meta.providerAvatar,
-          
           // Request details (for accepted offers)
           requestTitle: meta.requestTitle,
           requestLocation: meta.requestLocation,
           requestDate: meta.requestDate,
           requestThumbnail: meta.requestThumbnail,
           offerAmount: meta.offerAmount,
-          
           // Provider details (for counter offers)
           providerSkills: meta.providerSkills,
-          
           // Chat metadata
           lastMsg: meta.lastMsg || '',
           lastMsgTime: meta.lastMsgTime || 0,
-          
           // Legacy fields for backward compatibility
           name: meta.name || meta.clientName || meta.providerName || `Chat ${chatId}`,
           avatar: meta.avatar || meta.clientAvatar || meta.providerAvatar || '',
           title: meta.title
         },
-        
-        // Top-level convenience fields (for easy access)
+        // Top-level convenience fields 
         name: meta.name || meta.clientName || meta.providerName || `Chat ${chatId}`,
         avatar: meta.avatar || meta.clientAvatar || meta.providerAvatar || '',
         lastMsg: meta.lastMsg || '',
         lastMsgTime: meta.lastMsgTime || 0
       };
     });
-
     // Sort by most recent message first
     list.sort((a, b) => (b.lastMsgTime || 0) - (a.lastMsgTime || 0));
     
@@ -233,14 +221,13 @@ export function subscribeToChats(onChats) {
     console.error('❌ Error loading chats:', error);
     onChats([]);
   });
-
   // Return cleanup function
   return () => {
     try {
       off(chatsRef, listener);
-      console.log('🔌 Unsubscribed from chats');
+      console.log('Unsubscribed from chats');
     } catch (e) {
-      console.warn('⚠️ Error removing chats listener:', e);
+      console.warn('Error removing chats listener:', e);
     }
   };
 }
@@ -261,7 +248,6 @@ export async function saveOffer(offerId, data) {
   await setDoc(docRef, data, { merge: true });
   return docRef;
 }
-
 // Save offer in Realtime Database
 export async function saveOfferRealtime(offerId, data) {
   if (!realtimeDb) throw new Error('saveOfferRealtime: Realtime Database not initialized');
@@ -269,7 +255,6 @@ export async function saveOfferRealtime(offerId, data) {
   await rtdbUpdate(nodeRef, data);
   return nodeRef;
 }
-
 // Partial update offer in Realtime Database
 export async function updateOfferRealtime(offerId, updates) {
   if (!realtimeDb) throw new Error('updateOfferRealtime: Realtime Database not initialized');
@@ -277,21 +262,18 @@ export async function updateOfferRealtime(offerId, updates) {
   await rtdbUpdate(nodeRef, updates);
   return nodeRef;
 }
-
 // Delete offer from Firestore
 export async function deleteOffer(offerId) {
   if (!firestoreDb) throw new Error('deleteOffer: Firestore not initialized');
   const docRef = doc(firestoreDb, 'offers', String(offerId));
   await deleteDoc(docRef);
 }
-
 // Delete offer from Realtime Database
 export async function deleteOfferRealtime(offerId) {
   if (!realtimeDb) throw new Error('deleteOfferRealtime: Realtime Database not initialized');
   const dbRef = ref(realtimeDb, `offers/${String(offerId)}`);
   await remove(dbRef);
 }
-
 // Subscribe to offers with real-time updates
 export function subscribeToOffers(onOffers) {
   if (!realtimeDb) {

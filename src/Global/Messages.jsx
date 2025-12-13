@@ -1,4 +1,4 @@
-// src/Global/Messages.jsx - FIXED: Auto-create chats when offers are accepted/countered
+// src/Global/Messages.jsx 
 import React, { useState, useEffect, useRef } from "react";
 import { sendMessage, subscribeToChatMessages, subscribeToChats } from "../lib/firebase";
 import { sendGeminiMessage } from "../lib/gemini";
@@ -308,11 +308,24 @@ const MessagesPage = ({
     }
   };
 
-  // Get chat avatar
+  // ✅ FIXED: Get chat avatar - dynamically loads from current profiles
   const getChatAvatar = (chat) => {
     if (!chat?.meta) return '';
     const meta = chat.meta;
-    return userRole === 'client' ? meta.providerAvatar : meta.clientAvatar;
+    
+    // Get the other user's ID
+    const otherUserId = userRole === 'client' ? meta.providerId : meta.clientId;
+    
+    // Look up their current profile picture from profiles state
+    const otherUserProfile = profiles[otherUserId];
+    
+    if (otherUserProfile?.profilePic) {
+      return otherUserProfile.profilePic;
+    }
+    
+    // Fallback to chat metadata or default avatar
+    const fallbackAvatar = userRole === 'client' ? meta.providerAvatar : meta.clientAvatar;
+    return fallbackAvatar || `https://ui-avatars.com/api/?name=${getChatDisplayName(chat)}&size=200`;
   };
 
   return (

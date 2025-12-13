@@ -1,4 +1,4 @@
-// src/Global/OfferDetails.jsx - With Counter Offer Support
+// src/Global/OfferDetails.jsx 
 import React, { useState } from "react";
 import { saveOfferRealtime } from "../lib/firebase";
 

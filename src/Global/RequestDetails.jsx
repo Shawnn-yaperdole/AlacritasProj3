@@ -1,4 +1,4 @@
-// src/Global/RequestDetails.jsx - FIXED to ensure clientId is always saved
+// src/Global/RequestDetails.jsx 
 import React, { useState, useEffect } from "react";
 import { uploadFileToCloudinary } from "../lib/cloudinary";
 import { saveRequestRealtime } from "../lib/firebase";
@@ -7,7 +7,6 @@ import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from "react-lea
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
-// Fix default Leaflet marker icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -37,17 +36,14 @@ const RequestDetails = ({
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
-
   // Modals state
   const [chooseThumbnailOpen, setChooseThumbnailOpen] = useState(false);
   const [viewAllOpen, setViewAllOpen] = useState(false);
   const [providerViewOpen, setProviderViewOpen] = useState(false);
   const [zoomedImage, setZoomedImage] = useState(null);
-
   // Check if current user owns this request
   const isOwner = requestData?.clientId === currentUser;
   const canEdit = userRole === "client" && isOwner;
-
   // Upload new images
   const handleUpload = (e) => {
     const files = Array.from(e.target.files).map((file) => ({
@@ -63,7 +59,6 @@ const RequestDetails = ({
       return updated;
     });
   };
-
   // Delete request
   const handleDeleteRequest = async () => {
     if (!requestData?.id) return;
@@ -81,7 +76,6 @@ const RequestDetails = ({
       alert("Failed to delete request: " + (err.message || err));
     }
   };
-
   // Save changes
   const handleSaveChanges = async () => {
     if (!title || !type || !location || !description || additionalImages.length === 0) {
@@ -106,24 +100,19 @@ const RequestDetails = ({
 
       const imagesUrls = uploaded.map((u) => u.src);
       let thumbnailUrl = thumbnail;
-
       // Update thumbnail if it was a local URL
       if (thumbnailUrl && !thumbnailUrl.startsWith("http")) {
         const idx = additionalImages.findIndex((a) => a.src === thumbnailUrl);
         if (idx !== -1 && imagesUrls[idx]) thumbnailUrl = imagesUrls[idx];
       }
-
       // Ensure thumbnail is in the uploaded images
       if (!imagesUrls.includes(thumbnailUrl)) {
         thumbnailUrl = imagesUrls[0] || "";
       }
 
-      // ✅ CRITICAL: Determine the clientId
-      // For new requests: use currentUser
-      // For existing requests: keep the original clientId or use currentUser as fallback
       const finalClientId = requestData.clientId || currentUser;
 
-      console.log('💾 Saving request with clientId:', finalClientId, 'currentUser:', currentUser, 'isNewRequest:', isNewRequest);
+      console.log('Saving request with clientId:', finalClientId, 'currentUser:', currentUser, 'isNewRequest:', isNewRequest);
 
       // Step 2: Create payload with uploaded URLs
       let payload = {
@@ -135,39 +124,34 @@ const RequestDetails = ({
         thumbnail: thumbnailUrl,
         images: imagesUrls,
         latLon: selectedLatLon,
-        clientId: finalClientId, // ✅ ALWAYS set clientId
+        clientId: finalClientId, 
         date: requestData.date || new Date().toISOString().split('T')[0],
-        status: requestData.status || 'active' // ✅ Set default status
+        status: requestData.status || 'active' 
       };
-
       // Step 3: Assign ID for new requests
       if (isNewRequest && !payload.id) {
-        payload.id = Date.now(); // Use timestamp as unique ID
+        payload.id = Date.now(); 
       }
 
-      console.log('📤 Final payload:', payload);
-
+      console.log('Final payload:', payload);
       // Step 4: Save to Firebase Realtime Database
       const idToSave = payload.id || requestData?.id;
       if (idToSave) {
         await saveRequestRealtime(idToSave, payload);
-        console.log("✅ Saved to Realtime Database successfully with ID:", idToSave);
+        console.log("Saved to Realtime Database successfully with ID:", idToSave);
       }
-
       // Step 5: Update local state
       setAdditionalImages(imagesUrls.map((src) => ({ src })));
       setThumbnail(thumbnailUrl);
-
       // Step 6: Show success message
       setSaveMessage("Saved successfully!");
-
       // Step 7: Navigate back after a short delay
       setTimeout(() => {
         if (onBackToClientHome) onBackToClientHome(payload);
       }, 1000);
 
     } catch (err) {
-      console.error("❌ Failed to save request", err);
+      console.error("Failed to save request", err);
       setSaveMessage("Failed to save: " + (err.message || err));
       alert("Failed to save request. Please check console for details.");
     } finally {
